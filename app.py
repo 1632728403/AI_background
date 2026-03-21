@@ -24,13 +24,14 @@ def preprocess_image(image):
     input_tensor = img_np.transpose(2, 0, 1)[np.newaxis, :]
     return input_tensor
 
-# -------------------------- ONNX模型推理 --------------------------
+# -------------------------- ONNX模型推理（修复参数格式） --------------------------
 def infer_mask(image, session):
     input_tensor = preprocess_image(image)
     input_name = session.get_inputs()[0].name
     output_name = session.get_outputs()[0].name
     
-    output = session.run([output_name], {input_tensor})[0]
+    # ✅ 关键修复：字典必须是 {input_name: input_tensor} 键值对
+    output = session.run([output_name], {input_name: input_tensor})[0]
     pred = output[0, 0, :, :]
     mask = (pred > 0.5).astype(np.uint8) * 255
     mask_pil = Image.fromarray(mask).resize(image.size, Image.NEAREST)
