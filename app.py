@@ -77,7 +77,7 @@ st.markdown("""
         pointer-events: none; /* 不影响点击网页其他元素 */
     }
     </style>
-    <img src="米雪儿-全身立绘.png" class="cat-float">
+    <img src="米雪儿-全身立绘.PNG" class="cat-float">
 """, unsafe_allow_html=True)
 
 # 顶部Logo + 标题
