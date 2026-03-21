@@ -65,26 +65,6 @@ st.set_page_config(
     layout="wide"
 )
 
-try:
-    # 读取你的猫猫图片（文件名必须完全一致）
-    cat_base64 = image_to_base64("米雪儿-全身立绘.PNG")
-    st.markdown(f"""
-        <style>
-        .cat-float {{
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 180px;  /* 大小可调整 */
-            z-index: 999;
-            pointer-events: none;
-        }}
-        </style>
-        <img src="data:image/png;base64,{cat_base64}" class="cat-float">
-    """, unsafe_allow_html=True)
-except:
-    # 如果图片找不到，不报错，不影响主功能
-    pass
-
 # 顶部Logo + 标题
 col1, col2 = st.columns([1, 10])
 with col1:
