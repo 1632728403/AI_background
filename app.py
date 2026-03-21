@@ -13,6 +13,19 @@ from io import BytesIO
 # 云端环境兼容配置
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
+# -------------------------- 自定义CSS：固定立绘到右下角 --------------------------
+st.markdown("""
+<style>
+.fixed-char {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    z-index: 999;
+    border-radius: 10px;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # -------------------------- 加载轻量版U2NetP ONNX模型 --------------------------
 @st.cache_resource
 def load_model():
@@ -114,10 +127,9 @@ if uploaded_file is not None:
         mime="image/png"
     )
 
-# -------------------------- 右下角立绘（mi.png 小写） --------------------------
-st.markdown("""
-<img src="./mi.png" style="width:200px;position:fixed;bottom:30px;right:30px;z-index:999;border-radius:10px;">
-""", unsafe_allow_html=True)
+# -------------------------- ✅ 修复：右下角立绘（mi.png 小写） --------------------------
+char_img = Image.open("./mi.png")
+st.image(char_img, width=200, use_column_width=False, classes="fixed-char")
 
 # -------------------------- 底部开发者署名 --------------------------
 st.markdown("---")
