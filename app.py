@@ -1,12 +1,14 @@
 # ==============================================
-# U2NetP 轻量版人像分割工具 | 支持三色背景切换
+# U2NetP 轻量版人像分割工具 | 三色证件照背景
 # 西安电子科技大学 大模型应用创新赛作品
+# 修复：图片下载破损问题 | 开发者：陈宥廷 刘家瑄
 # ==============================================
 import os
 import numpy as np
 from PIL import Image
 import onnxruntime as ort
 import streamlit as st
+from io import BytesIO
 
 # 云端环境兼容配置
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -24,25 +26,23 @@ def preprocess_image(image):
     input_tensor = img_np.transpose(2, 0, 1)[np.newaxis, :]
     return input_tensor
 
-# -------------------------- ONNX模型推理（修复参数格式） --------------------------
+# -------------------------- ONNX模型推理 --------------------------
 def infer_mask(image, session):
     input_tensor = preprocess_image(image)
     input_name = session.get_inputs()[0].name
     output_name = session.get_outputs()[0].name
     
-    # ✅ 关键修复：字典必须是 {input_name: input_tensor} 键值对
     output = session.run([output_name], {input_name: input_tensor})[0]
     pred = output[0, 0, :, :]
     mask = (pred > 0.5).astype(np.uint8) * 255
     mask_pil = Image.fromarray(mask).resize(image.size, Image.NEAREST)
     return mask_pil
 
-# -------------------------- 核心功能：切换背景颜色（白/红/蓝） --------------------------
+# -------------------------- 切换背景颜色（白/红/蓝） --------------------------
 def generate_result(image, mask_pil, bg_color):
     mask_np = np.array(mask_pil)
     img_np = np.array(image)
     
-    # 定义三种背景色
     color_map = {
         "白色": (255, 255, 255),
         "红色": (255, 0, 0),
@@ -50,7 +50,6 @@ def generate_result(image, mask_pil, bg_color):
     }
     bg_r, bg_g, bg_b = color_map[bg_color]
     
-    # 创建彩色背景
     result = np.zeros_like(img_np)
     result[:, :, 0] = np.where(mask_np > 127, img_np[:, :, 0], bg_r)
     result[:, :, 1] = np.where(mask_np > 127, img_np[:, :, 1], bg_g)
@@ -58,11 +57,11 @@ def generate_result(image, mask_pil, bg_color):
     
     return Image.fromarray(result.astype(np.uint8))
 
-# -------------------------- Streamlit网页界面 --------------------------
+# -------------------------- 网页界面 --------------------------
 st.set_page_config(page_title="西电AI人像证件照工具", page_icon="🎨", layout="wide")
 st.title("🎨 西电专属 AI 人像分割 & 证件照背景替换工具")
 
-# 双栏布局：原图 + 结果图
+# 双栏布局
 col1, col2 = st.columns(2)
 with col1:
     st.markdown("### 📸 上传人像照片")
@@ -71,7 +70,7 @@ with col1:
 with col2:
     st.markdown("### ✨ 处理完成效果")
 
-# 新增：背景颜色选择器
+# 背景颜色选择
 st.subheader("🎨 选择证件照背景颜色")
 bg_color = st.radio(
     label="",
@@ -80,7 +79,7 @@ bg_color = st.radio(
     index=0
 )
 
-# 处理图片逻辑
+# 处理逻辑
 if uploaded_file is not None:
     img = Image.open(uploaded_file).convert("RGB")
     col1.image(img, caption="原始图片", use_column_width=True)
@@ -92,14 +91,19 @@ if uploaded_file is not None:
     
     col2.image(result_img, caption=f"已切换为{bg_color}背景", use_column_width=True)
     
-    # 下载按钮
+    # ✅ 修复下载破损：标准PNG格式输出
     st.divider()
+    buf = BytesIO()
+    result_img.save(buf, format="PNG")
+    byte_data = buf.getvalue()
+
     st.download_button(
         label=f"💾 下载{bg_color}背景证件照",
-        data=result_img.tobytes(),
+        data=byte_data,
         file_name=f"XDU证件照_{bg_color}.png",
         mime="image/png"
     )
+
 
 # -------------------------- 页面底部：开发者署名（核心要求） --------------------------
 st.markdown("---")
