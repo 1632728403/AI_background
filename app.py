@@ -103,4 +103,5 @@ if uploaded_file is not None:
 
 # -------------------------- 页面底部：开发者署名（核心要求） --------------------------
 st.markdown("---")
-st.markdown("<h4 style='text-align: center; color: #666;'>本页面由 XDU 陈宥廷 刘家瑄 开发</h4>", unsafe_allow_html=True)
+st.markdown("<h5 style='text-align: center; color: #666;'>本页面由 XDU 陈宥廷 刘家瑄 开发喵🐱</h5>", unsafe_allow_html=True)
+st.markdown("<h5 反馈：1632728403@qq.com</h5>", unsafe_allow_html=True)
