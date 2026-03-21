@@ -1,7 +1,7 @@
 # ==============================================
 # U2NetP 轻量版人像分割工具 | 三色证件照背景
 # 西安电子科技大学 大模型应用创新赛作品
-# 西电校徽 + 右下角立绘 | 下载无破损 | 开发者：陈宥廷 刘家瑄
+# 西电校徽 + 右下角米雪儿立绘 | 下载无破损 | 开发者：陈宥廷 刘家瑄
 # ==============================================
 import os
 import numpy as np
@@ -12,20 +12,6 @@ from io import BytesIO
 
 # 云端环境兼容配置
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-
-# -------------------------- 自定义CSS：固定图片到右下角 --------------------------
-st.markdown("""
-<style>
-#fixed-char-img {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    width: 180px;
-    z-index: 100;
-    pointer-events: none;  # 不影响点击操作
-}
-</style>
-""", unsafe_allow_html=True)
 
 # -------------------------- 加载轻量版U2NetP ONNX模型 --------------------------
 @st.cache_resource
@@ -128,10 +114,22 @@ if uploaded_file is not None:
         mime="image/png"
     )
 
-# -------------------------- 右下角插入米雪儿立绘 --------------------------
-st.markdown(f'<img id="fixed-char-img" src="./米雪儿-全身立绘.PNG">', unsafe_allow_html=True)
+# -------------------------- ✅ 修复：右下角米雪儿立绘（严格匹配文件名） --------------------------
+st.markdown('''
+<img 
+    src="./米雪儿-全身立绘.PNG"  <!-- 严格和你上传的文件名一致，大写PNG -->
+    style="
+        width: 200px; 
+        position: fixed; 
+        bottom: 30px; 
+        right: 30px; 
+        z-index: 999;  <!-- 确保在最上层 -->
+        border-radius: 10px;  <!-- 可选：加圆角更美观 -->
+    "
+>
+''', unsafe_allow_html=True)
 
-# -------------------------- 页面底部：开发者署名（核心要求） --------------------------
+# -------------------------- 底部开发者署名 --------------------------
 st.markdown("---")
-st.markdown("<h5 style='text-align: center; color: #666;'>本页面由 XDU 陈宥廷 刘家瑄 开发喵🐱</h5>", unsafe_allow_html=True)
-st.markdown("<h5 style='text-align: center; color: #666;'>反馈：1632728403@qq.com</h5>", unsafe_allow_html=True)
+st.markdown("<h4 style='text-align: center; color: #666;'>本页面由 XDU 陈宥廷 刘家瑄 开发喵 🐱</h4>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #666;'>反馈：1632728403@qq.com ↩</p>", unsafe_allow_html=True)
