@@ -65,6 +65,21 @@ st.set_page_config(
     layout="wide"
 )
 
+st.markdown("""
+    <style>
+    /* 固定图片在右下角 */
+    .cat-float {
+        position: fixed;
+        bottom: 20px;    /* 距离底部距离 */
+        right: 20px;     /* 距离右侧距离 */
+        width: 180px;   /* 立绘大小（可自行调整） */
+        z-index: 999;    /* 置于最上层，不被遮挡 */
+        pointer-events: none; /* 不影响点击网页其他元素 */
+    }
+    </style>
+    <img src="米雪儿-全身立绘.png" class="cat-float">
+""", unsafe_allow_html=True)
+
 # 顶部Logo + 标题
 col1, col2 = st.columns([1, 10])
 with col1:
