@@ -68,7 +68,7 @@ st.set_page_config(
 # 顶部Logo + 标题
 col1, col2 = st.columns([1, 10])
 with col1:
-    st.image("./xidian_logo.png", width=50)  # 本地校徽
+    st.image("./xidian_logo.png", width=80)  # 本地校徽
 with col2:
     st.title("🎨 西电专属 AI 人像分割 & 证件照背景替换工具")
 
