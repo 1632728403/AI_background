@@ -1,7 +1,7 @@
 # ==============================================
 # U2NetP 轻量版人像分割工具 | 三色证件照背景
 # 西安电子科技大学 大模型应用创新赛作品
-# 修复：图片下载破损问题 | 开发者：陈宥廷 刘家瑄
+# 修复：图片下载破损 | 西电图标版 | 开发者：陈宥廷 刘家瑄
 # ==============================================
 import os
 import numpy as np
@@ -57,9 +57,20 @@ def generate_result(image, mask_pil, bg_color):
     
     return Image.fromarray(result.astype(np.uint8))
 
-# -------------------------- 网页界面 --------------------------
-st.set_page_config(page_title="西电AI人像证件照工具", page_icon="🎨", layout="wide")
-st.title("🎨 西电专属 AI 人像分割 & 证件照背景替换工具")
+# -------------------------- 网页界面 + 西电图标 --------------------------
+# 🔥 关键1：浏览器标签加载西电图标
+st.set_page_config(
+    page_title="西电AI人像证件照工具", 
+    page_icon="https://www.xidian.edu.cn/images/logo.png",  # 西电官方校徽链接
+    layout="wide"
+)
+
+# 🔥 关键2：页面顶部展示西电Logo + 标题
+col_logo, col_title = st.columns([1, 10])
+with col_logo:
+    st.image("https://www.xidian.edu.cn/images/logo.png", width=50)  # 西电图标
+with col_title:
+    st.title("西电专属 AI 人像分割 & 证件照背景替换工具")
 
 # 双栏布局
 col1, col2 = st.columns(2)
@@ -91,7 +102,7 @@ if uploaded_file is not None:
     
     col2.image(result_img, caption=f"已切换为{bg_color}背景", use_column_width=True)
     
-    # ✅ 修复下载破损：标准PNG格式输出
+    # 修复下载破损：标准PNG格式输出
     st.divider()
     buf = BytesIO()
     result_img.save(buf, format="PNG")
