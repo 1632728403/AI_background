@@ -1,7 +1,7 @@
 # ==============================================
 # U2NetP 轻量版人像分割工具 | 三色证件照背景
 # 西安电子科技大学 大模型应用创新赛作品
-# 西电校徽 + 右下角立绘 | 下载无破损 | 开发者：陈宥廷 刘家瑄
+# 西电本地图标版 | 下载无破损 | 开发者：陈宥廷 刘家瑄
 # ==============================================
 import os
 import numpy as np
@@ -12,19 +12,6 @@ from io import BytesIO
 
 # 云端环境兼容配置
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-
-# -------------------------- 自定义CSS：固定立绘到右下角 --------------------------
-st.markdown("""
-<style>
-.fixed-char {
-    position: fixed;
-    bottom: 30px;
-    right: 30px;
-    z-index: 999;
-    border-radius: 10px;
-}
-</style>
-""", unsafe_allow_html=True)
 
 # -------------------------- 加载轻量版U2NetP ONNX模型 --------------------------
 @st.cache_resource
@@ -71,16 +58,17 @@ def generate_result(image, mask_pil, bg_color):
     return Image.fromarray(result.astype(np.uint8))
 
 # -------------------------- 网页界面配置 --------------------------
+# 本地西电图标（核心修改）
 st.set_page_config(
     page_title="西电AI人像证件照工具", 
-    page_icon="./xidian_logo.png",
+    page_icon="./xidian_logo.png",  # 调用你上传的本地图标
     layout="wide"
 )
 
-# 顶部校徽 + 标题
+# 顶部Logo + 标题
 col1, col2 = st.columns([1, 10])
 with col1:
-    st.image("./xidian_logo.png", width=80)
+    st.image("./xidian_logo.png", width=80)  # 本地校徽
 with col2:
     st.title("🎨 西电专属 AI 人像分割 & 证件照背景替换工具")
 
@@ -114,7 +102,7 @@ if uploaded_file is not None:
     
     col_img2.image(result_img, caption=f"已切换为{bg_color}背景", use_column_width=True)
     
-    # 修复下载破损
+    # 修复下载破损（标准PNG输出）
     st.divider()
     buf = BytesIO()
     result_img.save(buf, format="PNG")
@@ -126,12 +114,7 @@ if uploaded_file is not None:
         file_name=f"XDU证件照_{bg_color}.png",
         mime="image/png"
     )
-
-# -------------------------- ✅ 修复：右下角立绘（mi.png 小写） --------------------------
-char_img = Image.open("./mi.png")
-st.image(char_img, width=200, use_column_width=False, classes="fixed-char")
-
-# -------------------------- 底部开发者署名 --------------------------
+# -------------------------- 页面底部：开发者署名（核心要求） --------------------------
 st.markdown("---")
-st.markdown("<h4 style='text-align: center; color: #666;'>本页面由 XDU 陈宥廷 刘家瑄 开发喵 🐱</h4>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: #666;'>反馈：1632728403@qq.com ↩</p>", unsafe_allow_html=True)
+st.markdown("<h5 style='text-align: center; color: #666;'>本页面由 XDU 陈宥廷 刘家瑄 开发喵🐱</h5>", unsafe_allow_html=True)
+st.markdown("<h5 style='text-align: center; color: #666;'>反馈：1632728403@qq.com</h5>", unsafe_allow_html=True)
