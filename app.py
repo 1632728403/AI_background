@@ -65,20 +65,25 @@ st.set_page_config(
     layout="wide"
 )
 
-st.markdown("""
-    <style>
-    /* 固定图片在右下角 */
-    .cat-float {
-        position: fixed;
-        bottom: 20px;    /* 距离底部距离 */
-        right: 20px;     /* 距离右侧距离 */
-        width: 180px;   /* 立绘大小（可自行调整） */
-        z-index: 999;    /* 置于最上层，不被遮挡 */
-        pointer-events: none; /* 不影响点击网页其他元素 */
-    }
-    </style>
-    <img src="米雪儿-全身立绘.PNG" class="cat-float">
-""", unsafe_allow_html=True)
+try:
+    # 读取你的猫猫图片（文件名必须完全一致）
+    cat_base64 = image_to_base64("米雪儿-全身立绘.PNG")
+    st.markdown(f"""
+        <style>
+        .cat-float {{
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 180px;  /* 大小可调整 */
+            z-index: 999;
+            pointer-events: none;
+        }}
+        </style>
+        <img src="data:image/png;base64,{cat_base64}" class="cat-float">
+    """, unsafe_allow_html=True)
+except:
+    # 如果图片找不到，不报错，不影响主功能
+    pass
 
 # 顶部Logo + 标题
 col1, col2 = st.columns([1, 10])
