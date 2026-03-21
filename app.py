@@ -1,7 +1,7 @@
 # ==============================================
 # U2NetP 轻量版人像分割工具 | 三色证件照背景
 # 西安电子科技大学 大模型应用创新赛作品
-# 西电校徽 + 右下角米雪儿立绘 | 下载无破损 | 开发者：陈宥廷 刘家瑄
+# 西电校徽 + 右下角立绘 | 下载无破损 | 开发者：陈宥廷 刘家瑄
 # ==============================================
 import os
 import numpy as np
@@ -114,20 +114,10 @@ if uploaded_file is not None:
         mime="image/png"
     )
 
-# -------------------------- ✅ 修复：右下角米雪儿立绘（严格匹配文件名） --------------------------
-st.markdown('''
-<img 
-    src="./米雪儿-全身立绘.PNG"  <!-- 严格和你上传的文件名一致，大写PNG -->
-    style="
-        width: 200px; 
-        position: fixed; 
-        bottom: 30px; 
-        right: 30px; 
-        z-index: 999;  <!-- 确保在最上层 -->
-        border-radius: 10px;  <!-- 可选：加圆角更美观 -->
-    "
->
-''', unsafe_allow_html=True)
+# -------------------------- 右下角立绘（mi.png 小写） --------------------------
+st.markdown("""
+<img src="./mi.png" style="width:200px;position:fixed;bottom:30px;right:30px;z-index:999;border-radius:10px;">
+""", unsafe_allow_html=True)
 
 # -------------------------- 底部开发者署名 --------------------------
 st.markdown("---")
