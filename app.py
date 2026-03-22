@@ -143,6 +143,7 @@ else:
 # 5. 底部信息：折叠起来，不占主要空间
 with st.expander("关于本工具"):
     st.markdown("---")
-    st.markdown("**开发者**: 西电 陈宥廷 刘家瑄")
+    st.markdown("**开发者**: XDU 陈宥廷 刘家瑄 江奥")
     st.markdown("**技术栈**: U2NetP + ONNX + Streamlit")
     st.markdown("**反馈邮箱**: 1632728403@qq.com")
+    st.markdown("卡拉彼丘好玩喵🐱🐱🐱")
