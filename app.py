@@ -14,32 +14,51 @@ from io import BytesIO
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 # ==================== 【新增功能函数：无修改原有代码】 ====================
-# 1. 调整人像大小/比例（居中）
-def resize_person(img, mask, scale=1.0):
+# 1. 调整人像到证件照标准比例（自动居中）
+def resize_person(img, mask, target_ratio=1.0):
     coords = np.argwhere(np.array(mask) > 127)
     if len(coords) == 0:
         return img, mask
     y_min, x_min = coords.min(axis=0)
     y_max, x_max = coords.max(axis=0)
     
+    # 裁剪人像区域
     person_crop = img.crop((x_min, y_min, x_max, y_max))
     mask_crop = mask.crop((x_min, y_min, x_max, y_max))
     
-    w, h = person_crop.size
-    new_w, new_h = int(w * scale), int(h * scale)
-    person_resize = person_crop.resize((new_w, new_h), Image.LANCZOS)
-    mask_resize = mask_crop.resize((new_w, new_h), Image.NEAREST)
+    orig_w, orig_h = img.size
+    # 根据目标比例计算证件照画布尺寸
+    if target_ratio < 1:  # 竖版证件照（宽 < 高）
+        new_w = int(orig_h * target_ratio)
+        new_h = orig_h
+    elif target_ratio > 1:  # 横版证件照（宽 > 高）
+        new_w = orig_w
+        new_h = int(orig_w / target_ratio)
+    else:  # 正方形证件照
+        new_size = min(orig_w, orig_h)
+        new_w = new_size
+        new_h = new_size
     
-    new_img = Image.new("RGB", img.size, (0,0,0))
-    new_mask = Image.new("L", img.size, 0)
-    x_off = (img.size[0] - new_w) // 2
-    y_off = (img.size[1] - new_h) // 2
+    # 等比缩放人像至画布的90%大小（避免贴边，更美观）
+    person_w, person_h = person_crop.size
+    max_person_w = int(new_w * 0.9)
+    max_person_h = int(new_h * 0.9)
+    scale = min(max_person_w / person_w, max_person_h / person_h)
+    scaled_person_w = int(person_w * scale)
+    scaled_person_h = int(person_h * scale)
+    person_resized = person_crop.resize((scaled_person_w, scaled_person_h), Image.LANCZOS)
+    mask_resized = mask_crop.resize((scaled_person_w, scaled_person_h), Image.NEAREST)
     
-    new_img.paste(person_resize, (x_off, y_off))
-    new_mask.paste(mask_resize, (x_off, y_off))
+    # 创建新画布并居中放置人像
+    new_img = Image.new("RGB", (new_w, new_h), (0, 0, 0))
+    new_mask = Image.new("L", (new_w, new_h), 0)
+    x_offset = (new_w - scaled_person_w) // 2
+    y_offset = (new_h - scaled_person_h) // 2
+    new_img.paste(person_resized, (x_offset, y_offset))
+    new_mask.paste(mask_resized, (x_offset, y_offset))
     return new_img, new_mask
 
-# 2. 调整图片亮度
+# 2. 调整图片亮度（保留原功能）
 def adjust_brightness(img, value):
     return ImageEnhance.Brightness(img).enhance(value)
 # ========================================================================
@@ -112,14 +131,36 @@ with col_img1:
 with col_img2:
     st.markdown("### ✨ 处理完成效果")
 
-# ==================== 【新增：调节面板，不破坏原有布局】 ====================
+# ==================== 【修改：比例模块 → 证件照标准尺寸选择】 ====================
 st.markdown("---")
 st.subheader("⚙️ 自定义调节")
-col_bright, col_scale = st.columns(2)
+col_bright, col_ratio = st.columns(2)
 with col_bright:
     brightness = st.slider("💡 亮度调节", 0.5, 1.5, 1.0, 0.05)
-with col_scale:
-    scale = st.slider("📏 人像大小比例", 0.5, 1.5, 1.0, 0.05)
+with col_ratio:
+    ratio_option = st.selectbox(
+        "📏 证件照尺寸比例",
+        [
+            "一寸证件照 (2.5:3.5)",
+            "小两寸证件照 (3.3:4.8)",
+            "两寸证件照 (3.5:5.3)",
+            "正方形 (1:1)",
+            "常用竖版 (3:4)",
+            "常用横版 (4:3)"
+        ],
+        index=0,
+        help="选择常见证件照的标准比例，自动调整人像位置与尺寸"
+    )
+    # 映射选项到「宽高比」（w/h）
+    ratio_map = {
+        "一寸证件照 (2.5:3.5)": 2.5/3.5,
+        "小两寸证件照 (3.3:4.8)": 3.3/4.8,
+        "两寸证件照 (3.5:5.3)": 3.5/5.3,
+        "正方形 (1:1)": 1.0,
+        "常用竖版 (3:4)": 3/4,
+        "常用横版 (4:3)": 4/3
+    }
+    target_ratio = ratio_map[ratio_option]
 # ========================================================================
 
 # 背景颜色选择
@@ -139,13 +180,13 @@ if uploaded_file is not None:
     session = load_model()
     with st.spinner("🔍 AI 正在处理中..."):
         mask = infer_mask(img, session)
-        # ==================== 【新增：调用功能，无修改原有逻辑】 ====================
-        img_resized, mask_resized = resize_person(img, mask, scale)
+        # ==================== 【调用证件照比例函数】 ====================
+        img_resized, mask_resized = resize_person(img, mask, target_ratio)
         img_final = adjust_brightness(img_resized, brightness)
         # ========================================================================
         result_img = generate_result(img_final, mask_resized, bg_color)
     
-    col_img2.image(result_img, caption=f"已切换为{bg_color}背景", use_column_width=True)
+    col_img2.image(result_img, caption=f"{ratio_option} | {bg_color}背景 | 亮度:{brightness}", use_column_width=True)
     
     # 修复下载破损（标准PNG输出）
     st.divider()
@@ -156,7 +197,7 @@ if uploaded_file is not None:
     st.download_button(
         label=f"💾 下载{bg_color}背景证件照",
         data=byte_data,
-        file_name=f"XDU证件照_{bg_color}.png",
+        file_name=f"XDU证件照_{ratio_option}_{bg_color}.png",
         mime="image/png"
     )
 # -------------------------- 页面底部：开发者署名（核心要求） --------------------------
