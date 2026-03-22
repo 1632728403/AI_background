@@ -13,8 +13,41 @@ from io import BytesIO
 # 云端环境兼容配置
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
+# ==================== 【全局自定义CSS优化：框架感+响应式】 ====================
+st.markdown("""
+<style>
+/* 全局基础样式 */
+.main .block-container {
+    max-width: 1200px;
+    padding-top: 2rem;
+}
+/* 卡片容器样式（核心：增加框架感） */
+.card {
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+/* 图片限制最大宽度，防止电脑端过大，手机端自适应 */
+img {
+    max-width: 400px !important;
+    border-radius: 8px;
+    margin: 0 auto;
+}
+/* 标题间距优化 */
+h1, h3 {
+    margin-bottom: 1rem !important;
+}
+/* 滑块/单选框样式优化 */
+.stSlider, .stRadio {
+    padding: 0.5rem 0;
+}
+</style>
+""", unsafe_allow_html=True)
+# ============================================================================
+
 # ==================== 仅保留亮度调节函数 ====================
-# 调整图片亮度
 def adjust_brightness(img, value):
     return ImageEnhance.Brightness(img).enhance(value)
 # ============================================================
@@ -70,65 +103,78 @@ st.set_page_config(
     layout="wide"
 )
 
-# 顶部Logo + 标题
-col1, col2 = st.columns([1, 10])
-with col1:
-    st.image("./xidian_logo.png", width=80)
-with col2:
-    st.title("🎨 西电专属 AI 人像分割 & 证件照背景替换工具")
+# -------------------------- 顶部标题栏（优化布局） --------------------------
+col_logo, col_title = st.columns([1, 10])
+with col_logo:
+    st.image("./xidian_logo.png", width=70)
+with col_title:
+    st.title("🎨 西电专属 AI 人像分割工具")
+    st.caption("人像分割 | 三色背景 | 亮度调节 | 无尺寸修改版")
 
-# 双栏布局
-col_img1, col_img2 = st.columns(2)
-with col_img1:
-    st.markdown("### 📸 上传人像照片")
+st.divider()
+
+# -------------------------- 核心功能区（卡片式双栏布局） --------------------------
+col_upload, col_result = st.columns(2)
+
+# 左侧：上传区（卡片框架）
+with col_upload:
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown("### 📸 原始人像照片")
     uploaded_file = st.file_uploader("支持 JPG / PNG 格式", type=["jpg", "jpeg", "png"])
+    if uploaded_file:
+        img = Image.open(uploaded_file).convert("RGB")
+        st.image(img, caption="上传原图", width=380) # 固定宽度，不超大
+    st.markdown('</div>', unsafe_allow_html=True)
 
-with col_img2:
-    st.markdown("### ✨ 处理完成效果")
+# 右侧：结果区（卡片框架）
+with col_result:
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown("### ✨ 处理后效果")
+    if uploaded_file:
+        # 占位图，处理后替换
+        st.image("https://placehold.co/380x530?text=处理中...", caption="等待处理", width=380)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# ==================== 仅保留亮度调节 ====================
-st.markdown("---")
-st.subheader("⚙️ 自定义调节")
-brightness = st.slider("💡 亮度调节", 0.5, 1.5, 1.0, 0.05)
-# ==========================================================
+# -------------------------- 调节控制面板（卡片框架） --------------------------
+st.markdown('<div class="card">', unsafe_allow_html=True)
+st.markdown("### ⚙️ 参数调节")
+col_bright, col_bg = st.columns([1, 1])
+with col_bright:
+    brightness = st.slider("💡 亮度调节", 0.5, 1.5, 1.0, 0.05)
+with col_bg:
+    st.markdown("##### 🎨 背景颜色")
+    bg_color = st.radio("", options=["白色", "红色", "蓝色"], horizontal=True)
+st.markdown('</div>', unsafe_allow_html=True)
 
-# 背景颜色选择
-st.subheader("🎨 选择证件照背景颜色")
-bg_color = st.radio(
-    label="",
-    options=["白色", "红色", "蓝色"],
-    horizontal=True,
-    index=0
-)
-
-# 处理逻辑
+# -------------------------- 处理逻辑 --------------------------
 if uploaded_file is not None:
-    img = Image.open(uploaded_file).convert("RGB")
-    col_img1.image(img, caption="原始图片", use_column_width=True)
-    
     session = load_model()
-    with st.spinner("🔍 AI 正在处理中..."):
+    with st.spinner("🔍 AI 正在分割人像..."):
         mask = infer_mask(img, session)
-        # 仅调节亮度，无任何尺寸修改
+        # 仅调节亮度，无尺寸修改
         img_final = adjust_brightness(img, brightness)
         result_img = generate_result(img_final, mask, bg_color)
     
-    col_img2.image(result_img, caption=f"{bg_color}背景 | 亮度:{brightness}", use_column_width=True)
+    # 刷新右侧结果图
+    with col_result:
+        st.image(result_img, caption=f"{bg_color}背景 | 亮度:{brightness}", width=380)
     
-    # 修复下载破损（标准PNG输出）
-    st.divider()
+    # 下载按钮（卡片样式）
+    st.markdown('<div class="card" style="text-align: center;">', unsafe_allow_html=True)
     buf = BytesIO()
     result_img.save(buf, format="PNG")
     byte_data = buf.getvalue()
-
+    
     st.download_button(
         label=f"💾 下载{bg_color}背景证件照",
         data=byte_data,
         file_name=f"XDU证件照_{bg_color}.png",
-        mime="image/png"
+        mime="image/png",
+        use_container_width=True
     )
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# -------------------------- 页面底部：开发者署名 --------------------------
-st.markdown("---")
-st.markdown("<h5 style='text-align: center; color: #666;'>本页面由 XDU 陈宥廷 刘家瑄 开发喵🐱</h5>", unsafe_allow_html=True)
-st.markdown("<h5 style='text-align: center; color: #666;'>反馈：1632728403@qq.com</h5>", unsafe_allow_html=True)
+# -------------------------- 页面底部 --------------------------
+st.divider()
+st.markdown("<p style='text-align: center; color: #666;'>本工具由 XDU 陈宥廷 刘家瑄 开发 🐱</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #666;'>反馈邮箱：1632728403@qq.com</p>", unsafe_allow_html=True)
