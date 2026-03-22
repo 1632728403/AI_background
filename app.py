@@ -49,7 +49,7 @@ def generate_result(image, mask_pil, bg_color):
     
     return Image.fromarray(result.astype(np.uint8))
 
-# -------------------------- 界面代码 (已调整顺序) --------------------------
+# -------------------------- 界面代码 (含格式选择) --------------------------
 
 # 1. 页面配置
 st.set_page_config(
@@ -74,13 +74,10 @@ with st.container():
 
 st.divider()
 
-# 3. 核心控制区 (顺序已调整：1.上传 -> 2.背景 -> 3.亮度)
-
-# 【第一步：上传】
+# 3. 核心控制区
 st.markdown("### 📸 第一步：上传照片")
 uploaded_file = st.file_uploader("支持 JPG / PNG 格式", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
 
-# 只有上传了照片，才显示后面的选项，界面更干净
 if uploaded_file is not None:
     
     # 【第二步：背景颜色】
@@ -100,6 +97,15 @@ if uploaded_file is not None:
         max_value=1.8,
         value=1.0,
         step=0.05
+    )
+    
+    # 【第四步：导出格式选择】(新增)
+    st.markdown("### 📄 第四步：选择导出格式")
+    export_format = st.radio(
+        label="推荐使用 PNG 以获得最佳画质",
+        options=["PNG (无损高质量)", "JPG (较小文件)"],
+        horizontal=True,
+        index=0
     )
 
     # 4. 图片处理逻辑
@@ -129,17 +135,29 @@ if uploaded_file is not None:
         st.caption(f"处理结果 ({bg_color})")
         st.image(result_img, use_container_width=True)
 
-    # 下载区域
+    # 下载区域 (根据格式动态调整)
     st.divider()
     buf = BytesIO()
-    result_img.save(buf, format="PNG")
+    
+    # 解析用户选择
+    if "JPG" in export_format:
+        # 保存为 JPG
+        result_img.save(buf, format="JPEG", quality=95) # quality=95 兼顾体积和画质
+        ext = "jpg"
+        mime_type = "image/jpeg"
+    else:
+        # 保存为 PNG
+        result_img.save(buf, format="PNG")
+        ext = "png"
+        mime_type = "image/png"
+        
     byte_data = buf.getvalue()
     
     st.download_button(
-        label=f"📥 下载 {bg_color} 背景证件照",
+        label=f"📥 下载 {bg_color} 背景证件照 (.{ext})",
         data=byte_data,
-        file_name=f"XDU证件照_{bg_color}.png",
-        mime="image/png",
+        file_name=f"XDU证件照_{bg_color}.{ext}",
+        mime=mime_type,
         type="primary",
         use_container_width=True
     )
@@ -156,6 +174,7 @@ else:
 # 5. 底部信息
 with st.expander("关于本工具"):
     st.markdown("---")
-    st.markdown("**开发者**: 西电 陈宥廷 刘家瑄")
+    st.markdown("**开发者**: 西电 陈宥廷 刘家瑄 江奥")
     st.markdown("**技术栈**: U2NetP + ONNX + Streamlit")
     st.markdown("**反馈邮箱**: 1632728403@qq.com")
+    st.markdown("卡拉彼丘好玩喵🐱")
