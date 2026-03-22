@@ -5,13 +5,44 @@
 # ==============================================
 import os
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageEnhance  # 仅新增：亮度调节依赖库
 import onnxruntime as ort
 import streamlit as st
 from io import BytesIO
 
 # 云端环境兼容配置
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
+# ==================== 【新增功能函数：无修改原有代码】 ====================
+# 1. 调整人像大小/比例（居中）
+def resize_person(img, mask, scale=1.0):
+    coords = np.argwhere(np.array(mask) > 127)
+    if len(coords) == 0:
+        return img, mask
+    y_min, x_min = coords.min(axis=0)
+    y_max, x_max = coords.max(axis=0)
+    
+    person_crop = img.crop((x_min, y_min, x_max, y_max))
+    mask_crop = mask.crop((x_min, y_min, x_max, y_max))
+    
+    w, h = person_crop.size
+    new_w, new_h = int(w * scale), int(h * scale)
+    person_resize = person_crop.resize((new_w, new_h), Image.LANCZOS)
+    mask_resize = mask_crop.resize((new_w, new_h), Image.NEAREST)
+    
+    new_img = Image.new("RGB", img.size, (0,0,0))
+    new_mask = Image.new("L", img.size, 0)
+    x_off = (img.size[0] - new_w) // 2
+    y_off = (img.size[1] - new_h) // 2
+    
+    new_img.paste(person_resize, (x_off, y_off))
+    new_mask.paste(mask_resize, (x_off, y_off))
+    return new_img, new_mask
+
+# 2. 调整图片亮度
+def adjust_brightness(img, value):
+    return ImageEnhance.Brightness(img).enhance(value)
+# ========================================================================
 
 # -------------------------- 加载轻量版U2NetP ONNX模型 --------------------------
 @st.cache_resource
@@ -81,6 +112,16 @@ with col_img1:
 with col_img2:
     st.markdown("### ✨ 处理完成效果")
 
+# ==================== 【新增：调节面板，不破坏原有布局】 ====================
+st.markdown("---")
+st.subheader("⚙️ 自定义调节")
+col_bright, col_scale = st.columns(2)
+with col_bright:
+    brightness = st.slider("💡 亮度调节", 0.5, 1.5, 1.0, 0.05)
+with col_scale:
+    scale = st.slider("📏 人像大小比例", 0.5, 1.5, 1.0, 0.05)
+# ========================================================================
+
 # 背景颜色选择
 st.subheader("🎨 选择证件照背景颜色")
 bg_color = st.radio(
@@ -98,7 +139,11 @@ if uploaded_file is not None:
     session = load_model()
     with st.spinner("🔍 AI 正在处理中..."):
         mask = infer_mask(img, session)
-        result_img = generate_result(img, mask, bg_color)
+        # ==================== 【新增：调用功能，无修改原有逻辑】 ====================
+        img_resized, mask_resized = resize_person(img, mask, scale)
+        img_final = adjust_brightness(img_resized, brightness)
+        # ========================================================================
+        result_img = generate_result(img_final, mask_resized, bg_color)
     
     col_img2.image(result_img, caption=f"已切换为{bg_color}背景", use_column_width=True)
     
