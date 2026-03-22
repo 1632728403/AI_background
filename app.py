@@ -225,9 +225,9 @@ st.divider()
 col_like, _ = st.columns([1, 3])
 with col_like:
     if st.session_state.liked:
-        st.button("👍 已点赞", disabled=True, use_container_width=True)
+        st.button("👍 谢谢喵", disabled=True, use_container_width=True)
     else:
-        if st.button("👍 觉得好用点个赞", on_click=add_like, use_container_width=True):
+        if st.button("👍 觉得好用点个赞喵", on_click=add_like, use_container_width=True):
             st.rerun()
 # ==========================================================
 
