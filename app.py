@@ -49,110 +49,100 @@ def generate_result(image, mask_pil, bg_color):
     
     return Image.fromarray(result.astype(np.uint8))
 
-# -------------------------- 界面优化代码 --------------------------
+# -------------------------- 双端适配界面代码 --------------------------
 
 # 1. 页面配置
 st.set_page_config(
-    page_title="西电AI人像证件照工具", 
+    page_title="西电AI证件照", 
     page_icon="./xidian_logo.png", 
-    layout="centered"  # 改为居中布局，显得更聚焦
+    layout="centered" # 居中对手机最友好
 )
 
-# 2. 侧边栏 (Sidebar) - 用于放置控件和说明
-with st.sidebar:
-    # 侧边栏顶部Logo
-    try:
-        st.image("./xidian_logo.png", width=100)
-    except:
-        pass # 防止图标找不到报错
-    
-    st.title("🎨 西电专属证件照")
-    st.markdown("---")
-    
-    st.markdown("### 1. 参数设置")
-    bg_color = st.radio(
-        "选择背景颜色",
-        options=["白色", "红色", "蓝色"],
-        horizontal=True,
-        index=0
-    )
-    
-    st.markdown("---")
-    st.markdown("### 2. 使用说明")
-    st.info("""
-    1. 上传一张清晰的人像照片。
-    2. 等待 AI 自动抠图。
-    3. 在右侧查看效果并下载。
-    """)
-    
-    st.markdown("---")
-    st.markdown("### 开发者")
-    st.caption("XDU 陈宥廷 刘家瑄")
-    st.caption("反馈：1632728403@qq.com")
-
-# 3. 主界面 (Main Area) - 用于展示图片
-# 顶部标题栏
-col1, col2 = st.columns([1, 10])
-with col1:
-    try:
-        st.image("./xidian_logo.png", width=60)
-    except:
+# 2. 顶部：标题栏 (手机/电脑通用)
+# 用容器包裹，确保排版紧凑
+with st.container():
+    col1, col2, col3 = st.columns([1, 6, 1])
+    with col1:
+        try:
+            st.image("./xidian_logo.png", width=50)
+        except:
+            st.empty()
+    with col2:
+        st.markdown("<h1 style='text-align: center; font-size: 1.5em;'>西电专属 AI 证件照</h1>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: grey; font-size: 0.9em;'>人像分割 & 背景替换</p>", unsafe_allow_html=True)
+    with col3:
         st.empty()
-with col2:
-    st.header("AI 人像分割 & 背景替换")
-    st.write("基于 U2NetP 轻量模型 | 支持三色证件照一键生成")
 
 st.divider()
 
-# 图片上传与展示区域
-uploaded_file = st.file_uploader("📸 点击上传人像照片 (JPG/PNG)", type=["jpg", "jpeg", "png"])
+# 3. 核心控制区：放在最显眼的位置 (手机用户不用翻页)
+# 这里不使用侧边栏，直接放主界面
+st.markdown("### 🎨 第一步：选择背景颜色")
+bg_color = st.radio(
+    label="", # 空标签，节省空间
+    options=["白色", "红色", "蓝色"],
+    horizontal=True,
+    index=0
+)
 
+st.markdown("### 📸 第二步：上传照片")
+uploaded_file = st.file_uploader("支持 JPG / PNG 格式", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
+
+# 4. 图片处理与展示区
 if uploaded_file is not None:
     img = Image.open(uploaded_file).convert("RGB")
-    
-    # 加载模型
     session = load_model()
     
-    # 两栏布局：左原图，右结果
-    col1, col2 = st.columns(2)
+    # 推理部分
+    with st.spinner("🔍 AI 正在处理中，请稍候..."):
+        mask = infer_mask(img, session)
+        result_img = generate_result(img, mask, bg_color)
     
-    with col1:
-        st.subheader("原始图片")
-        # 限制宽度为 400px，避免图片过大
-        st.image(img, width=400) 
-    
-    with col2:
-        st.subheader("处理结果")
-        with st.spinner("AI 正在智能抠图中..."):
-            mask = infer_mask(img, session)
-            result_img = generate_result(img, mask, bg_color)
-        
-        # 限制宽度为 400px
-        st.image(result_img, width=400)
-
-    # 底部下载区域
     st.divider()
-    st.subheader("💾 下载成品")
+    st.markdown("### ✨ 第三步：查看效果 & 下载")
     
-    # 修复下载破损
+    # 响应式图片展示
+    # 电脑端：左右对比 (2 columns)
+    # 手机端：自动变成上下排列 (Streamlit 原生特性)
+    c1, c2 = st.columns(2)
+    
+    with c1:
+        st.caption("原始图片")
+        st.image(img, use_container_width=True) # 手机端用容器宽度更适配
+    
+    with c2:
+        st.caption(f"处理结果 ({bg_color})")
+        st.image(result_img, use_container_width=True)
+
+    # 下载区域
+    st.divider()
+    # 准备下载数据
     buf = BytesIO()
     result_img.save(buf, format="PNG")
     byte_data = buf.getvalue()
-
-    # 使用更醒目的按钮样式
+    
+    # 大按钮，方便手机点击
     st.download_button(
-        label=f"下载 {bg_color} 背景证件照",
+        label=f"📥 下载 {bg_color} 背景证件照",
         data=byte_data,
         file_name=f"XDU证件照_{bg_color}.png",
         mime="image/png",
         type="primary",
         use_container_width=True
     )
+
 else:
-    # 占位提示，让界面不空白
+    # 空状态提示
     st.markdown("""
-    <div style="text-align: center; color: #888; padding: 50px;">
-        <br><br>
-        请在上方上传图片以开始
+    <div style="text-align: center; padding: 30px; color: #aaa;">
+        <br>
+        请上传一张正面人像照片以开始制作
     </div>
     """, unsafe_allow_html=True)
+
+# 5. 底部信息：折叠起来，不占主要空间
+with st.expander("关于本工具"):
+    st.markdown("---")
+    st.markdown("**开发者**: 西电 陈宥廷 刘家瑄")
+    st.markdown("**技术栈**: U2NetP + ONNX + Streamlit")
+    st.markdown("**反馈邮箱**: 1632728403@qq.com")
