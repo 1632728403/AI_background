@@ -30,7 +30,7 @@ st.markdown("""
 @st.cache_resource
 def load_model():
     # 替换为你上传的最优模型
-    session = ort.InferenceSession("u2net.onnx")
+    session = ort.InferenceSession("u2netp.onnx")
     return session
 
 # -------------------------- 图片预处理 --------------------------
