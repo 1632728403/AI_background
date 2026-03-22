@@ -1,7 +1,7 @@
 # ==============================================
 # U2NetP 轻量版人像分割工具 | 三色证件照背景
 # 西安电子科技大学 大模型应用创新赛作品
-# 西电本地图标版 | 下载无破损 | 开发者：陈宥廷 刘家瑄
+# 西电校徽 + 右下角立绘 | 42MB轻量化新模型 | 开发者：陈宥廷 刘家瑄
 # ==============================================
 import os
 import numpy as np
@@ -13,10 +13,24 @@ from io import BytesIO
 # 云端环境兼容配置
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
-# -------------------------- 加载轻量版U2NetP ONNX模型 --------------------------
+# -------------------------- 自定义CSS：固定立绘到右下角 --------------------------
+st.markdown("""
+<style>
+.fixed-char {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    z-index: 999;
+    border-radius: 10px;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# -------------------------- ✅ 核心修改：加载42MB轻量化新模型 --------------------------
 @st.cache_resource
 def load_model():
-    session = ort.InferenceSession("u2netp.onnx")
+    # 替换为你上传的新模型！
+    session = ort.InferenceSession("silueta.onnx")
     return session
 
 # -------------------------- 图片预处理 --------------------------
@@ -58,17 +72,16 @@ def generate_result(image, mask_pil, bg_color):
     return Image.fromarray(result.astype(np.uint8))
 
 # -------------------------- 网页界面配置 --------------------------
-# 本地西电图标（核心修改）
 st.set_page_config(
     page_title="西电AI人像证件照工具", 
-    page_icon="./xidian_logo.png",  # 调用你上传的本地图标
+    page_icon="./xidian_logo.png",
     layout="wide"
 )
 
-# 顶部Logo + 标题
+# 顶部校徽 + 标题
 col1, col2 = st.columns([1, 10])
 with col1:
-    st.image("./xidian_logo.png", width=80)  # 本地校徽
+    st.image("./xidian_logo.png", width=80)
 with col2:
     st.title("🎨 西电专属 AI 人像分割 & 证件照背景替换工具")
 
@@ -102,7 +115,7 @@ if uploaded_file is not None:
     
     col_img2.image(result_img, caption=f"已切换为{bg_color}背景", use_column_width=True)
     
-    # 修复下载破损（标准PNG输出）
+    # 修复下载破损
     st.divider()
     buf = BytesIO()
     result_img.save(buf, format="PNG")
@@ -114,6 +127,7 @@ if uploaded_file is not None:
         file_name=f"XDU证件照_{bg_color}.png",
         mime="image/png"
     )
+
 # -------------------------- 页面底部：开发者署名（核心要求） --------------------------
 st.markdown("---")
 st.markdown("<h5 style='text-align: center; color: #666;'>本页面由 XDU 陈宥廷 刘家瑄 开发喵🐱</h5>", unsafe_allow_html=True)
