@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from PIL import Image, ImageEnhance # 新增 ImageEnhance
+from PIL import Image, ImageEnhance
 import onnxruntime as ort
 import streamlit as st
 from io import BytesIO
@@ -49,7 +49,7 @@ def generate_result(image, mask_pil, bg_color):
     
     return Image.fromarray(result.astype(np.uint8))
 
-# -------------------------- 界面代码 (含亮度调节) --------------------------
+# -------------------------- 界面代码 (已调整顺序) --------------------------
 
 # 1. 页面配置
 st.set_page_config(
@@ -74,47 +74,49 @@ with st.container():
 
 st.divider()
 
-# 3. 核心控制区 (新增亮度调节)
-st.markdown("### 🎨 第一步：选择背景颜色")
-bg_color = st.radio(
-    label="",
-    options=["白色", "红色", "蓝色"],
-    horizontal=True,
-    index=0
-)
+# 3. 核心控制区 (顺序已调整：1.上传 -> 2.背景 -> 3.亮度)
 
-# 【新增】亮度调节滑块
-st.markdown("### 💡 第二步：调节照片亮度")
-brightness_factor = st.slider(
-    "亮度系数 (1.0 为原图)",
-    min_value=0.5,   # 最暗
-    max_value=1.8,   # 最亮
-    value=1.0,       # 默认值
-    step=0.05,
-    help="向左拖动变暗，向右拖动变亮"
-)
-
-st.markdown("### 📸 第三步：上传照片")
+# 【第一步：上传】
+st.markdown("### 📸 第一步：上传照片")
 uploaded_file = st.file_uploader("支持 JPG / PNG 格式", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
 
-# 4. 图片处理与展示区
+# 只有上传了照片，才显示后面的选项，界面更干净
 if uploaded_file is not None:
+    
+    # 【第二步：背景颜色】
+    st.markdown("### 🎨 第二步：选择背景颜色")
+    bg_color = st.radio(
+        label="",
+        options=["白色", "红色", "蓝色"],
+        horizontal=True,
+        index=0
+    )
+
+    # 【第三步：亮度调节】
+    st.markdown("### 💡 第三步：调节照片亮度")
+    brightness_factor = st.slider(
+        "亮度系数 (1.0 为原图)",
+        min_value=0.5,
+        max_value=1.8,
+        value=1.0,
+        step=0.05
+    )
+
+    # 4. 图片处理逻辑
     img = Image.open(uploaded_file).convert("RGB")
     session = load_model()
     
-    # 推理部分
     with st.spinner("🔍 AI 正在处理中，请稍候..."):
         mask = infer_mask(img, session)
         result_img = generate_result(img, mask, bg_color)
         
-        # 【新增】应用亮度调节
-        # 只有当系数不为 1.0 时才处理，节省一点点性能
+        # 应用亮度调节
         if brightness_factor != 1.0:
             enhancer = ImageEnhance.Brightness(result_img)
             result_img = enhancer.enhance(brightness_factor)
     
     st.divider()
-    st.markdown("### ✨ 第四步：查看效果 & 下载")
+    st.markdown("### ✨ 效果预览 & 下载")
     
     # 响应式图片展示
     c1, c2 = st.columns(2)
@@ -143,6 +145,7 @@ if uploaded_file is not None:
     )
 
 else:
+    # 空状态提示
     st.markdown("""
     <div style="text-align: center; padding: 30px; color: #aaa;">
         <br>
