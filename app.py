@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageEnhance # 新增 ImageEnhance
 import onnxruntime as ort
 import streamlit as st
 from io import BytesIO
@@ -49,17 +49,16 @@ def generate_result(image, mask_pil, bg_color):
     
     return Image.fromarray(result.astype(np.uint8))
 
-# -------------------------- 双端适配界面代码 --------------------------
+# -------------------------- 界面代码 (含亮度调节) --------------------------
 
 # 1. 页面配置
 st.set_page_config(
     page_title="西电AI证件照", 
     page_icon="./xidian_logo.png", 
-    layout="centered" # 居中对手机最友好
+    layout="centered"
 )
 
-# 2. 顶部：标题栏 (手机/电脑通用)
-# 用容器包裹，确保排版紧凑
+# 2. 顶部标题栏
 with st.container():
     col1, col2, col3 = st.columns([1, 6, 1])
     with col1:
@@ -75,17 +74,27 @@ with st.container():
 
 st.divider()
 
-# 3. 核心控制区：放在最显眼的位置 (手机用户不用翻页)
-# 这里不使用侧边栏，直接放主界面
+# 3. 核心控制区 (新增亮度调节)
 st.markdown("### 🎨 第一步：选择背景颜色")
 bg_color = st.radio(
-    label="", # 空标签，节省空间
+    label="",
     options=["白色", "红色", "蓝色"],
     horizontal=True,
     index=0
 )
 
-st.markdown("### 📸 第二步：上传照片")
+# 【新增】亮度调节滑块
+st.markdown("### 💡 第二步：调节照片亮度")
+brightness_factor = st.slider(
+    "亮度系数 (1.0 为原图)",
+    min_value=0.5,   # 最暗
+    max_value=1.8,   # 最亮
+    value=1.0,       # 默认值
+    step=0.05,
+    help="向左拖动变暗，向右拖动变亮"
+)
+
+st.markdown("### 📸 第三步：上传照片")
 uploaded_file = st.file_uploader("支持 JPG / PNG 格式", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
 
 # 4. 图片处理与展示区
@@ -97,18 +106,22 @@ if uploaded_file is not None:
     with st.spinner("🔍 AI 正在处理中，请稍候..."):
         mask = infer_mask(img, session)
         result_img = generate_result(img, mask, bg_color)
+        
+        # 【新增】应用亮度调节
+        # 只有当系数不为 1.0 时才处理，节省一点点性能
+        if brightness_factor != 1.0:
+            enhancer = ImageEnhance.Brightness(result_img)
+            result_img = enhancer.enhance(brightness_factor)
     
     st.divider()
-    st.markdown("### ✨ 第三步：查看效果 & 下载")
+    st.markdown("### ✨ 第四步：查看效果 & 下载")
     
     # 响应式图片展示
-    # 电脑端：左右对比 (2 columns)
-    # 手机端：自动变成上下排列 (Streamlit 原生特性)
     c1, c2 = st.columns(2)
     
     with c1:
         st.caption("原始图片")
-        st.image(img, use_container_width=True) # 手机端用容器宽度更适配
+        st.image(img, use_container_width=True)
     
     with c2:
         st.caption(f"处理结果 ({bg_color})")
@@ -116,12 +129,10 @@ if uploaded_file is not None:
 
     # 下载区域
     st.divider()
-    # 准备下载数据
     buf = BytesIO()
     result_img.save(buf, format="PNG")
     byte_data = buf.getvalue()
     
-    # 大按钮，方便手机点击
     st.download_button(
         label=f"📥 下载 {bg_color} 背景证件照",
         data=byte_data,
@@ -132,7 +143,6 @@ if uploaded_file is not None:
     )
 
 else:
-    # 空状态提示
     st.markdown("""
     <div style="text-align: center; padding: 30px; color: #aaa;">
         <br>
@@ -140,10 +150,9 @@ else:
     </div>
     """, unsafe_allow_html=True)
 
-# 5. 底部信息：折叠起来，不占主要空间
+# 5. 底部信息
 with st.expander("关于本工具"):
     st.markdown("---")
-    st.markdown("**开发者**: XDU 陈宥廷 刘家瑄 江奥")
+    st.markdown("**开发者**: 西电 陈宥廷 刘家瑄")
     st.markdown("**技术栈**: U2NetP + ONNX + Streamlit")
     st.markdown("**反馈邮箱**: 1632728403@qq.com")
-    st.markdown("卡拉彼丘好玩喵🐱🐱🐱")
