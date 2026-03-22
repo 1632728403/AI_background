@@ -49,7 +49,7 @@ def generate_result(image, mask_pil, bg_color):
     
     return Image.fromarray(result.astype(np.uint8))
 
-# -------------------------- 界面代码 (含格式选择) --------------------------
+# -------------------------- 界面代码 (已修复小问号提示) --------------------------
 
 # 1. 页面配置
 st.set_page_config(
@@ -89,17 +89,18 @@ if uploaded_file is not None:
         index=0
     )
 
-    # 【第三步：亮度调节】
+    # 【第三步：亮度调节】已修复：恢复help参数，小问号提示回归
     st.markdown("### 💡 第三步：调节照片亮度")
     brightness_factor = st.slider(
         "亮度系数 (1.0 为原图)",
         min_value=0.5,
         max_value=1.8,
         value=1.0,
-        step=0.05
+        step=0.05,
+        help="向左拖动变暗，向右拖动变亮" # 就是这行代码，控制小问号提示
     )
     
-    # 【第四步：导出格式选择】(新增)
+    # 【第四步：导出格式选择】
     st.markdown("### 📄 第四步：选择导出格式")
     export_format = st.radio(
         label="推荐使用 PNG 以获得最佳画质",
@@ -142,7 +143,7 @@ if uploaded_file is not None:
     # 解析用户选择
     if "JPG" in export_format:
         # 保存为 JPG
-        result_img.save(buf, format="JPEG", quality=95) # quality=95 兼顾体积和画质
+        result_img.save(buf, format="JPEG", quality=95)
         ext = "jpg"
         mime_type = "image/jpeg"
     else:
@@ -174,7 +175,7 @@ else:
 # 5. 底部信息
 with st.expander("关于本工具"):
     st.markdown("---")
-    st.markdown("**开发者**: 西电 陈宥廷 刘家瑄 江奥")
+    st.markdown("**开发者**: 西电 陈宥廷 刘家瑄")
     st.markdown("**技术栈**: U2NetP + ONNX + Streamlit")
     st.markdown("**反馈邮箱**: 1632728403@qq.com")
-    st.markdown("卡拉彼丘好玩喵🐱")
+    st.markdown("卡拉彼丘好玩喵🐱🐱🐱")
