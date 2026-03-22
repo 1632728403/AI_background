@@ -8,6 +8,53 @@ from io import BytesIO
 # 云端环境兼容配置
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
+# ==================== 【新增：浏览量 + 点赞功能 核心代码】 ====================
+# 初始化会话状态，防止重复计数
+def init_session():
+    if "visited" not in st.session_state:
+        st.session_state.visited = False
+    if "liked" not in st.session_state:
+        st.session_state.liked = False
+
+# 浏览量统计（文件持久化）
+def get_visit_count():
+    count_file = "visit_count.txt"
+    if not os.path.exists(count_file):
+        with open(count_file, "w") as f:
+            f.write("0")
+    with open(count_file, "r") as f:
+        count = int(f.read().strip())
+    # 仅首次加载计数
+    if not st.session_state.visited:
+        count += 1
+        with open(count_file, "w") as f:
+            f.write(str(count))
+        st.session_state.visited = True
+    return count
+
+# 点赞功能（文件持久化 + 防重复点赞）
+def get_like_count():
+    like_file = "like_count.txt"
+    if not os.path.exists(like_file):
+        with open(like_file, "w") as f:
+            f.write("0")
+    with open(like_file, "r") as f:
+        return int(f.read().strip())
+
+def add_like():
+    if not st.session_state.liked:
+        like_file = "like_count.txt"
+        current = get_like_count() + 1
+        with open(like_file, "w") as f:
+            f.write(str(current))
+        st.session_state.liked = True
+
+# 初始化
+init_session()
+visit_num = get_visit_count()
+like_num = get_like_count()
+# ==========================================================================
+
 # -------------------------- 核心函数保持不变 --------------------------
 @st.cache_resource
 def load_model():
@@ -58,7 +105,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# 2. 顶部标题栏
+# 2. 顶部标题栏 + 统计数据
 with st.container():
     col1, col2, col3 = st.columns([1, 6, 1])
     with col1:
@@ -69,6 +116,8 @@ with st.container():
     with col2:
         st.markdown("<h1 style='text-align: center; font-size: 1.5em;'>西电专属 AI 证件照</h1>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; color: grey; font-size: 0.9em;'>人像分割 & 背景替换</p>", unsafe_allow_html=True)
+        # 【显示浏览量+点赞数】
+        st.markdown(f"<p style='text-align: center; color: #666; font-size: 0.8em;'>👀 总访问量：{visit_num}  |  👍 点赞数：{like_num}</p>", unsafe_allow_html=True)
     with col3:
         st.empty()
 
@@ -170,6 +219,17 @@ else:
         请上传一张正面人像照片以开始制作
     </div>
     """, unsafe_allow_html=True)
+
+# ==================== 【新增：点赞按钮】 ====================
+st.divider()
+col_like, _ = st.columns([1, 3])
+with col_like:
+    if st.session_state.liked:
+        st.button("👍 已点赞", disabled=True, use_container_width=True)
+    else:
+        if st.button("👍 觉得好用点个赞", on_click=add_like, use_container_width=True):
+            st.rerun()
+# ==========================================================
 
 # 5. 底部信息
 with st.expander("关于本工具"):
