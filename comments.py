@@ -1,4 +1,4 @@
-# 独立评论区网站 | 匿名发布 + 极小点赞(防重复) + 回复 + 点赞排序 + 北京时间
+# 独立评论区网站 | 匿名发布 + 极小点赞(防重复) + 回复 + 点赞排序 + 北京时间 + 紧凑间距
 import streamlit as st
 import json
 import os
@@ -37,7 +37,7 @@ def save_data(data):
 
 init_data()
 
-# ===================== 核心样式（点赞图标极小！） =====================
+# ===================== 核心样式（点赞图标极小 + 紧凑间距） =====================
 st.markdown("""
 <style>
 /* 全局紧凑排版 */
@@ -55,22 +55,32 @@ st.markdown("""
 .like-btn:hover {color: #ff4444 !important;}
 /* 已点赞样式 */
 .liked {color: #ff4444 !important;}
-/* 评论卡片紧凑 */
+/* 评论卡片紧凑 - 减小底部间距 */
 .comment-box {
     padding: 8px 12px;
-    margin: 6px 0;
+    margin: 4px 0;  /* 从6px改为4px，缩小上下间距 */
     border-radius: 6px;
     background: #1a1a1a;
 }
-/* 回复区域缩进 */
+/* 回复区域缩进 - 减小间距 */
 .reply-box {
     margin-left: 20px;
-    padding: 6px 10px;
+    padding: 4px 8px;  /* 从6px 10px改为4px 8px */
+    margin-top: 4px;   /* 新增，减小回复与主评论的间距 */
     background: #222;
     border-radius: 4px;
 }
 /* 文字大小统一 */
 .text-sm {font-size: 13px; color: #aaa;}
+/* 减小分隔线的上下间距 */
+hr {
+    margin: 8px 0 !important;  /* 从默认改为8px 0 */
+    border-color: #333 !important;
+}
+/* 减小按钮区域的间距 */
+.stButton > button {
+    margin: 2px 2px 4px 0 !important;  /* 缩小按钮上下间距 */
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -177,4 +187,5 @@ else:
                 </div>
                 """, unsafe_allow_html=True)
 
+        # 分隔线（区分不同评论）
         st.divider()
