@@ -1,4 +1,4 @@
-# 独立评论区网站 | 匿名发布 + 极小点赞 + 回复 + 点赞排序
+# 独立评论区网站 | 匿名发布 + 极小点赞(防重复) + 回复 + 点赞排序
 import streamlit as st
 import json
 import os
@@ -6,12 +6,13 @@ from datetime import datetime
 import uuid
 
 # ===================== 基础配置 =====================
-# 数据存储文件（独立存储，永不丢失）
 DATA_FILE = "comment_data.json"
-# 管理员密码（删评专用）
-ADMIN_PWD = "admin123"
-# 页面配置
-st.set_page_config(page_title="评论区", page_icon="💬", layout="wide")
+ADMIN_PWD = "admin123"  # 你的管理员密码
+st.set_page_config(page_title="通用评论区", page_icon="💬", layout="wide")
+
+# 初始化：记录当前用户已点赞的评论ID（防重复点赞）
+if "liked_comments" not in st.session_state:
+    st.session_state.liked_comments = set()
 
 # ===================== 数据初始化 =====================
 def init_data():
@@ -45,6 +46,8 @@ st.markdown("""
     cursor: pointer;
 }
 .like-btn:hover {color: #ff4444 !important;}
+/* 已点赞样式 */
+.liked {color: #ff4444 !important;}
 /* 评论卡片紧凑 */
 .comment-box {
     padding: 8px 12px;
@@ -98,17 +101,19 @@ if submit and content.strip():
 
 st.markdown("---")
 
-# ===================== 评论展示 + 点赞 + 回复 + 排序 =====================
-st.subheader("📄 全部评论")
+# ===================== 评论展示 + 防重复点赞 + 回复 + 排序 =====================
+st.subheader("📄 全部评论（按点赞数排序）")
 comments = load_data()
-
-# 🔥 核心：按点赞数降序排列
+# 按点赞数降序排列
 comments_sorted = sorted(comments, key=lambda x: x["likes"], reverse=True)
 
 if not comments_sorted:
     st.info("暂无评论，快来发布第一条吧～")
 else:
     for idx, c in enumerate(comments_sorted):
+        comment_id = c["id"]
+        has_liked = comment_id in st.session_state.liked_comments
+
         # 主评论
         st.markdown(f"""
         <div class="comment-box">
@@ -117,26 +122,31 @@ else:
         </div>
         """, unsafe_allow_html=True)
 
-        # 🔥 极小点赞按钮（完全不影响排版）
+        # 极小点赞按钮 + 防重复点赞
         col1, col2, col3 = st.columns([1, 3, 20])
         with col1:
-            if st.button(f"👍 {c['likes']}", key=f"like_{c['id']}", help="点赞"):
-                c["likes"] += 1
-                save_data(comments)
-                st.rerun()
+            btn_label = f"👍 {c['likes']}"
+            if has_liked:
+                st.button(btn_label, key=f"like_{comment_id}", disabled=True, help="已点赞")
+            else:
+                if st.button(btn_label, key=f"like_{comment_id}", help="点赞"):
+                    c["likes"] += 1
+                    st.session_state.liked_comments.add(comment_id)
+                    save_data(comments)
+                    st.rerun()
         # 回复按钮
         with col2:
-            show_reply = st.button("回复", key=f"reply_{c['id']}")
+            show_reply = st.button("回复", key=f"reply_{comment_id}")
         # 管理员删除
         with col3:
-            if admin_mode and st.button("🗑️ 删评", key=f"del_{c['id']}"):
+            if admin_mode and st.button("🗑️ 删评", key=f"del_{comment_id}"):
                 comments.remove(c)
                 save_data(comments)
                 st.rerun()
 
         # 回复发布框
         if show_reply:
-            with st.form(f"reply_form_{c['id']}", clear_on_submit=True):
+            with st.form(f"reply_form_{comment_id}", clear_on_submit=True):
                 reply_nick = st.text_input("回复昵称", placeholder="匿名")
                 reply_content = st.text_input("回复内容", label_visibility="collapsed")
                 reply_submit = st.form_submit_button("发送回复")
