@@ -238,3 +238,14 @@ with st.expander("关于本工具"):
     st.markdown("**技术栈**: U2NetP + ONNX + Streamlit")
     st.markdown("**反馈邮箱**: 1632728403@qq.com")
     st.markdown("卡拉彼丘好玩喵")
+
+# ====================== 评论区传送门（独立跳转，不影响主功能） ======================
+st.markdown("---")
+# 跳转按钮 - 点击直接打开你的独立评论区网站
+st.link_button(
+    label="💬 前往评论区 | 发布留言、点赞、互动",
+    url="https://aibackground-comments.streamlit.app/",
+    type="secondary",
+    use_container_width=True
+)
+st.markdown("<p style='text-align:center; color:#888; font-size:12px;'>独立评论区 · 安全匿名 · 实时互动</p>", unsafe_allow_html=True)
