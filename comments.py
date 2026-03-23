@@ -11,7 +11,7 @@ DATA_FILE = "comment_data.json"
 # 管理员密码（删评专用）
 ADMIN_PWD = "admin123"
 # 页面配置
-st.set_page_config(page_title="通用评论区", page_icon="💬", layout="wide")
+st.set_page_config(page_title="评论区", page_icon="💬", layout="wide")
 
 # ===================== 数据初始化 =====================
 def init_data():
@@ -99,7 +99,7 @@ if submit and content.strip():
 st.markdown("---")
 
 # ===================== 评论展示 + 点赞 + 回复 + 排序 =====================
-st.subheader("📄 全部评论（按点赞数排序）")
+st.subheader("📄 全部评论")
 comments = load_data()
 
 # 🔥 核心：按点赞数降序排列
