@@ -231,31 +231,13 @@ with col_like:
             st.rerun()
 # ====================== 评论区传送门（独立跳转，不影响主功能） ======================
 # 跳转按钮 - 点击直接打开你的独立评论区网站
-# 跳转按钮
 st.link_button(
     label="💬 前往评论区 | 发布留言、点赞、互动",
     url="https://aibackground-comments.streamlit.app/",
     type="secondary",
     use_container_width=True
 )
-
-# ========== 核心：仅微信内置浏览器才显示提示 ==========
-from streamlit import runtime
-ctx = runtime.get_instance()
-user_agent = ""
-if ctx and hasattr(ctx, "_session_manager") and ctx._session_manager:
-    sess = next(iter(ctx._session_manager._sessions.values()), None)
-    if sess:
-        user_agent = sess.client.request.headers.get("User-Agent", "")
-
-# 判断是否为微信浏览器，是则显示提示
-is_wechat = "MicroMessenger" in user_agent
-if is_wechat:
-    st.markdown("""
-    <div style="text-align:center; color:#ffcc00; font-size:13px; margin-top:5px;">
-    ⚠️ 微信内无法直接打开，请复制链接到浏览器访问
-    </div>
-    """, unsafe_allow_html=True)
+st.markdown("---")
 # 5. 底部信息
 with st.expander("关于本工具"):
     st.markdown("**技术栈**: U2NetP + ONNX + Streamlit")
