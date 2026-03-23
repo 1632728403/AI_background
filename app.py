@@ -231,20 +231,20 @@ with col_like:
             st.rerun()
 # ==========================================================
 
-# ====================== 【底部评论区】紧凑版 | 含时间+点赞 (不影响主功能) ======================
+# ====================== 【底部评论区】精简版 | 无点赞+正确时间+简单分隔 (不影响主功能) ======================
 import json
 import os
 from datetime import datetime
 
-# 独立存储评论数据（点赞数+时间+昵称+内容）
+# 独立存储评论数据（仅保留昵称、内容、时间）
 COMMENT_FILE = "comments.json"
 
-# 初始化JSON文件结构
+# 初始化评论文件（避免首次运行报错）
 if not os.path.exists(COMMENT_FILE):
     with open(COMMENT_FILE, "w", encoding="utf-8") as f:
         json.dump([], f, ensure_ascii=False, indent=2)
 
-# --- 样式微调：让电脑端更紧凑 ---
+# --- 样式微调：紧凑布局 + 适配深色主题 ---
 st.markdown("""
 <style>
 /* 压缩评论区整体间距 */
@@ -263,44 +263,25 @@ div[data-testid="stVerticalBlock"] > div:has(> h4) {
     font-size: 0.9rem !important;
     height: 70px !important;
 }
-/* 紧凑按钮 */
+/* 紧凑按钮（和输入框垂直对齐） */
 .stButton>button {
     padding: 0.4rem 1.2rem !important;
     font-size: 0.9rem !important;
-    margin-top: 1.8rem !important; /* 让按钮和输入框对齐 */
+    margin-top: 1.8rem !important;
 }
-/* 评论卡片样式 */
-.comment-card {
-    background-color: #2a2a2a;
-    padding: 10px 15px;
-    border-radius: 8px;
-    margin-bottom: 8px;
-}
-/* 评论时间样式 */
+/* 评论时间样式：小字号+灰色，不抢视线 */
 .comment-time {
     font-size: 0.8rem;
     color: #888;
-}
-/* 点赞按钮样式 */
-.like-btn {
-    background-color: #444;
-    color: white;
-    border: none;
-    padding: 3px 10px;
-    border-radius: 12px;
-    cursor: pointer;
-    font-size: 0.85rem;
-}
-.like-btn:hover {
-    background-color: #666;
+    margin-left: 0.5rem;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 1. 评论区标题 (缩小字体，更紧凑) ---
+# --- 1. 评论区标题（缩小字体，更紧凑） ---
 st.markdown("<h4 style='margin-bottom: 1rem;'>💬 用户评论区 & 反馈建议</h4>", unsafe_allow_html=True)
 
-# --- 2. 发布评论表单 (两列布局，更紧凑) ---
+# --- 2. 发布评论表单（两列紧凑布局） ---
 with st.form("compact_comment_form", clear_on_submit=True):
     col_input, col_btn = st.columns([3, 1])
     
@@ -309,72 +290,48 @@ with st.form("compact_comment_form", clear_on_submit=True):
         comment_content = st.text_area("", placeholder="分享你的使用体验或建议...", label_visibility="collapsed")
     
     with col_btn:
-        # 占位符对齐
+        # 占位符让按钮和输入框垂直对齐
         st.write("")
         st.write("")
         submit_btn = st.form_submit_button("发布")
 
-# --- 3. 发布逻辑 (带时间戳) ---
+# --- 3. 发布逻辑（带正确时间戳） ---
 if submit_btn and comment_content.strip():
     # 读取现有评论
     with open(COMMENT_FILE, "r", encoding="utf-8") as f:
         comments = json.load(f)
     
-    # 组装新评论（包含时间和初始点赞数）
+    # 组装新评论（时间格式：月-日 时:分，如 03-23 14:35）
     new_comment = {
         "nickname": nickname.strip() if nickname.strip() else "匿名同学",
         "content": comment_content.strip(),
-        "time": datetime.now().strftime("%m-%d %H:%M"),  # 简洁时间格式
-        "likes": 0  # 初始点赞数
+        "time": datetime.now().strftime("%m-%d %H:%M")
     }
     comments.append(new_comment)
     
-    # 保存
+    # 保存到文件
     with open(COMMENT_FILE, "w", encoding="utf-8") as f:
         json.dump(comments, f, ensure_ascii=False, indent=2)
     
     st.success("✅ 评论发布成功！")
 
-# --- 4. 展示评论 (带时间+点赞功能) ---
+# --- 4. 展示评论（无点赞+简单分隔+清爽界面） ---
 st.markdown("<h5 style='margin-top: 1.5rem; margin-bottom: 0.5rem;'>📄 最新评论</h5>", unsafe_allow_html=True)
 
-# 读取评论
+# 读取评论数据
 with open(COMMENT_FILE, "r", encoding="utf-8") as f:
     comments = json.load(f)
 
 if not comments:
     st.info("暂无评论，快来留下你的第一条反馈吧～")
 else:
-    # 倒序展示（最新的在上面）
+    # 倒序展示（最新评论在最上方）
     for comment in reversed(comments):
-        # 用卡片包裹，更美观
-        st.markdown(f'<div class="comment-card">', unsafe_allow_html=True)
-        
-        # 昵称 + 时间
-        col1, col2 = st.columns([4, 1])
-        with col1:
-            st.markdown(f"**{comment['nickname']}** <span class='comment-time'>{comment['time']}</span>", unsafe_allow_html=True)
-        with col2:
-            # 点赞按钮
-            like_btn = st.button(f"👍 {comment['likes']}", key=f"like_{comment['time']}_{comment['content'][:5]}")
-        
+        # 昵称 + 发布时间
+        st.markdown(f"**{comment['nickname']}** <span class='comment-time'>{comment['time']}</span>", unsafe_allow_html=True)
         # 评论内容
         st.write(comment['content'])
-        
-        # 点赞逻辑
-        if like_btn:
-            # 找到对应评论并+1
-            for c in comments:
-                if c["time"] == comment["time"] and c["content"] == comment["content"]:
-                    c["likes"] += 1
-                    break
-            # 保存
-            with open(COMMENT_FILE, "w", encoding="utf-8") as f:
-                json.dump(comments, f, ensure_ascii=False, indent=2)
-            # 强制刷新
-            st.rerun()
-        
-        st.markdown('</div>', unsafe_allow_html=True)
+        # 简单分隔线（区分不同评论）
         st.divider()
 
 # 5. 底部信息
