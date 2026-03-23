@@ -237,6 +237,7 @@ st.link_button(
     type="secondary",
     use_container_width=True
 )
+st.markdown("<p style='text-align:center; color:#888; font-size:15px;'>若打不开请移步浏览器</p>", unsafe_allow_html=True)
 st.markdown("---")
 # 5. 底部信息
 with st.expander("关于本工具"):
