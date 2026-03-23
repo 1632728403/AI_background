@@ -1,8 +1,8 @@
-# 独立评论区网站 | 匿名发布 + 极小点赞(防重复) + 回复 + 点赞排序
+# 独立评论区网站 | 匿名发布 + 极小点赞(防重复) + 回复 + 点赞排序 + 北京时间
 import streamlit as st
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 import uuid
 
 # ===================== 基础配置 =====================
@@ -13,6 +13,13 @@ st.set_page_config(page_title="通用评论区", page_icon="💬", layout="wide"
 # 初始化：记录当前用户已点赞的评论ID（防重复点赞）
 if "liked_comments" not in st.session_state:
     st.session_state.liked_comments = set()
+
+# ===================== 北京时间获取函数 =====================
+def get_beijing_time():
+    # UTC时间 +8小时 = 北京时间
+    utc_now = datetime.utcnow()
+    beijing_now = utc_now + timedelta(hours=8)
+    return beijing_now.strftime("%m-%d %H:%M")
 
 # ===================== 数据初始化 =====================
 def init_data():
@@ -90,7 +97,7 @@ if submit and content.strip():
         "id": str(uuid.uuid4()),
         "nickname": nickname.strip() or "匿名用户",
         "content": content.strip(),
-        "time": datetime.now().strftime("%m-%d %H:%M"),
+        "time": get_beijing_time(),  # 🔥 固定北京时间
         "likes": 0,
         "replys": []
     }
@@ -154,7 +161,7 @@ else:
                     new_reply = {
                         "nickname": reply_nick.strip() or "匿名用户",
                         "content": reply_content.strip(),
-                        "time": datetime.now().strftime("%m-%d %H:%M")
+                        "time": get_beijing_time()  # 🔥 回复也用北京时间
                     }
                     c["replys"].append(new_reply)
                     save_data(comments)
@@ -165,7 +172,7 @@ else:
             for reply in c["replys"]:
                 st.markdown(f"""
                 <div class="reply-box">
-                    <b>{reply['nickname']}</b> <span class="text-sm">{reply['time']}</span>
+                    <b>{reply['nickname']}</b> <span class='text-sm'>{reply['time']}</span>
                     <p>{reply['content']}</p>
                 </div>
                 """, unsafe_allow_html=True)
