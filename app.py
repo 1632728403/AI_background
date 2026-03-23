@@ -231,10 +231,57 @@ with col_like:
             st.rerun()
 # ==========================================================
 
+# ====================== 底部评论区（无侵入，不影响主功能） ======================
+st.markdown("---")
+st.markdown("## 💬 用户评论区 & 反馈建议")
+import json
+import os
+from datetime import datetime
+
+# 独立存储评论，不影响主程序
+COMMENT_FILE = "comments.json"
+if not os.path.exists(COMMENT_FILE):
+    with open(COMMENT_FILE, "w", encoding="utf-8") as f:
+        json.dump([], f, ensure_ascii=False, indent=2)
+
+# 发布评论
+with st.form("comment_form", clear_on_submit=True):
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        name = st.text_input("昵称", placeholder="同学", label_visibility="collapsed")
+    with col2:
+        content = st.text_area("留下你的想法", placeholder="欢迎反馈使用体验~", height=80, label_visibility="collapsed")
+    submit = st.form_submit_button("✅ 发布评论")
+
+if submit and content.strip():
+    with open(COMMENT_FILE, "r", encoding="utf-8") as f:
+        comments = json.load(f)
+    comments.append({
+        "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "name": name.strip() or "匿名用户",
+        "content": content.strip()
+    })
+    with open(COMMENT_FILE, "w", encoding="utf-8") as f:
+        json.dump(comments, f, ensure_ascii=False, indent=2)
+    st.success("发布成功！")
+
+# 展示评论
+st.markdown("### 📄 全部评论")
+with open(COMMENT_FILE, "r", encoding="utf-8") as f:
+    comments = json.load(f)
+
+if comments:
+    for c in reversed(comments):
+        st.markdown(f"**{c['name']}** · {c['time']}")
+        st.write(c["content"])
+        st.markdown("---")
+else:
+    st.info("快来发布第一条评论吧～")
+
 # 5. 底部信息
 with st.expander("关于本工具"):
     st.markdown("---")
-    st.markdown("**开发者**: 西电 陈宥廷 刘家瑄 江奥")
+    st.markdown("**开发者**: XDU 陈宥廷 刘家瑄 江奥")
     st.markdown("**技术栈**: U2NetP + ONNX + Streamlit")
     st.markdown("**反馈邮箱**: 1632728403@qq.com")
     st.markdown("卡拉彼丘好玩喵")
