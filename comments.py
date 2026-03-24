@@ -1,4 +1,4 @@
-# 独立评论区网站 | 匿名发布 + 极小点赞(防重复) + 回复 + 点赞排序 + 北京时间 + 紧凑间距
+# 独立评论区网站 | 匿名发布 + 极小点赞(防重复) + 回复 + 点赞排序 + 北京时间 + 紧凑间距 + 原生背景色
 import streamlit as st
 import json
 import os
@@ -37,7 +37,7 @@ def save_data(data):
 
 init_data()
 
-# ===================== 核心样式（点赞图标极小 + 紧凑间距） =====================
+# ===================== 核心样式（点赞图标极小 + 紧凑间距 + 原生背景） =====================
 st.markdown("""
 <style>
 /* 全局紧凑排版 */
@@ -55,31 +55,33 @@ st.markdown("""
 .like-btn:hover {color: #ff4444 !important;}
 /* 已点赞样式 */
 .liked {color: #ff4444 !important;}
-/* 评论卡片紧凑 - 减小底部间距 */
+/* 评论卡片紧凑 - 移除黑色背景，跟随网页原生颜色 */
 .comment-box {
     padding: 8px 12px;
-    margin: 4px 0;  /* 从6px改为4px，缩小上下间距 */
+    margin: 4px 0;
     border-radius: 6px;
-    background: #1a1a1a;
+    /* 移除背景色，自动继承网页背景 */
+    background: transparent !important;
 }
-/* 回复区域缩进 - 减小间距 */
+/* 回复区域缩进 - 移除黑色背景，跟随网页原生颜色 */
 .reply-box {
     margin-left: 20px;
-    padding: 4px 8px;  /* 从6px 10px改为4px 8px */
-    margin-top: 4px;   /* 新增，减小回复与主评论的间距 */
-    background: #222;
+    padding: 4px 8px;
+    margin-top: 4px;
     border-radius: 4px;
+    /* 移除背景色，自动继承网页背景 */
+    background: transparent !important;
 }
 /* 文字大小统一 */
 .text-sm {font-size: 13px; color: #aaa;}
 /* 减小分隔线的上下间距 */
 hr {
-    margin: 8px 0 !important;  /* 从默认改为8px 0 */
+    margin: 8px 0 !important;
     border-color: #333 !important;
 }
 /* 减小按钮区域的间距 */
 .stButton > button {
-    margin: 2px 2px 4px 0 !important;  /* 缩小按钮上下间距 */
+    margin: 2px 2px 4px 0 !important;
 }
 </style>
 """, unsafe_allow_html=True)
