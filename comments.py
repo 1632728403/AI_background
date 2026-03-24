@@ -14,6 +14,10 @@ st.set_page_config(page_title="通用评论区", page_icon="💬", layout="wide"
 if "liked_comments" not in st.session_state:
     st.session_state.liked_comments = set()
 
+# 初始化：记录当前打开回复框的评论ID（修复回复功能）
+if "open_reply" not in st.session_state:
+    st.session_state.open_reply = None
+
 # ===================== 北京时间获取函数 =====================
 def get_beijing_time():
     # UTC时间 +8小时 = 北京时间
@@ -60,7 +64,6 @@ st.markdown("""
     padding: 8px 12px;
     margin: 4px 0;
     border-radius: 6px;
-    /* 移除背景色，自动继承网页背景 */
     background: transparent !important;
 }
 /* 回复区域缩进 - 移除黑色背景，跟随网页原生颜色 */
@@ -69,7 +72,6 @@ st.markdown("""
     padding: 4px 8px;
     margin-top: 4px;
     border-radius: 4px;
-    /* 移除背景色，自动继承网页背景 */
     background: transparent !important;
 }
 /* 文字大小统一 */
@@ -153,9 +155,11 @@ else:
                     st.session_state.liked_comments.add(comment_id)
                     save_data(comments)
                     st.rerun()
-        # 回复按钮
+        # 回复按钮（修复版：用session_state管理状态）
         with col2:
-            show_reply = st.button("回复", key=f"reply_{comment_id}")
+            if st.button("回复", key=f"reply_{comment_id}"):
+                st.session_state.open_reply = comment_id
+                st.rerun()
         # 管理员删除
         with col3:
             if admin_mode and st.button("🗑️ 删评", key=f"del_{comment_id}"):
@@ -163,8 +167,8 @@ else:
                 save_data(comments)
                 st.rerun()
 
-        # 回复发布框
-        if show_reply:
+        # 回复发布框（修复版：只有当前评论ID匹配时才显示）
+        if st.session_state.open_reply == comment_id:
             with st.form(f"reply_form_{comment_id}", clear_on_submit=True):
                 reply_nick = st.text_input("回复昵称", placeholder="匿名")
                 reply_content = st.text_input("回复内容", label_visibility="collapsed")
@@ -177,6 +181,7 @@ else:
                     }
                     c["replys"].append(new_reply)
                     save_data(comments)
+                    st.session_state.open_reply = None  # 提交后关闭回复框
                     st.rerun()
 
         # 展示回复
