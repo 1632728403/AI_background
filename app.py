@@ -78,16 +78,17 @@ def infer_mask(image, session):
     mask_pil = Image.fromarray(mask).resize(image.size, Image.NEAREST)
     return mask_pil
 
-def generate_result(image, mask_pil, bg_color):
+# 颜色转换工具：十六进制转RGB
+def hex2rgb(hex_color):
+    hex_color = hex_color.lstrip('#')
+    return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+
+# 生成结果（支持标准色+自定义色）
+def generate_result(image, mask_pil, bg_hex):
     mask_np = np.array(mask_pil)
     img_np = np.array(image)
-    
-    color_map = {
-        "白色": (255, 255, 255),
-        "红色": (255, 0, 0),
-        "蓝色": (0, 0, 255)
-    }
-    bg_r, bg_g, bg_b = color_map[bg_color]
+    # 转换为RGB
+    bg_r, bg_g, bg_b = hex2rgb(bg_hex)
     
     result = np.zeros_like(img_np)
     result[:, :, 0] = np.where(mask_np > 127, img_np[:, :, 0], bg_r)
@@ -129,14 +130,30 @@ uploaded_file = st.file_uploader("支持 JPG / PNG 格式", type=["jpg", "jpeg",
 
 if uploaded_file is not None:
     
-    # 【第二步：背景颜色】
+    # 【第二步：背景颜色 - 升级：标准证件照色 + 自定义调色盘】
     st.markdown("### 🎨 第二步：选择背景颜色")
-    bg_color = st.radio(
-        label="",
-        options=["白色", "红色", "蓝色"],
+    # 🔥 证件照国标标准色号（核心）
+    color_options = {
+        "🪪 标准白色 #FFFFFF": "#FFFFFF",
+        "🪪 标准红色 #E63946": "#E63946",
+        "🪪 标准蓝色 #1E88E5": "#1E88E5",
+        "🪪 浅蓝背景 #87CEEB": "#87CEEB",
+        "🪪 深灰背景 #CCCCCC": "#CCCCCC",
+        "🎨 自定义颜色": "custom"
+    }
+    selected_color = st.radio(
+        "选择证件照背景色",
+        list(color_options.keys()),
         horizontal=True,
-        index=0
+        index=0,
+        label_visibility="collapsed"
     )
+
+    # 自定义颜色选择器
+    if color_options[selected_color] == "custom":
+        bg_hex = st.color_picker("挑选自定义背景色", "#FFFFFF")
+    else:
+        bg_hex = color_options[selected_color]
 
     # 【第三步：亮度调节】
     st.markdown("### 💡 第三步：调节照片亮度")
@@ -163,7 +180,7 @@ if uploaded_file is not None:
     
     with st.spinner("🔍 AI 正在处理中，请稍候..."):
         mask = infer_mask(img, session)
-        result_img = generate_result(img, mask, bg_color)
+        result_img = generate_result(img, mask, bg_hex)
         
         # 应用亮度调节
         if brightness_factor != 1.0:
@@ -181,7 +198,7 @@ if uploaded_file is not None:
         st.image(img, use_container_width=True)
     
     with c2:
-        st.caption(f"处理结果 ({bg_color})")
+        st.caption(f"处理结果")
         st.image(result_img, use_container_width=True)
 
     # 下载区域 (根据格式动态调整)
@@ -203,9 +220,9 @@ if uploaded_file is not None:
     byte_data = buf.getvalue()
     
     st.download_button(
-        label=f"📥 下载 {bg_color} 背景证件照 (.{ext})",
+        label=f"📥 下载证件照 (.{ext})",
         data=byte_data,
-        file_name=f"XDU证件照_{bg_color}.{ext}",
+        file_name=f"XDU证件照.{ext}",
         mime=mime_type,
         type="primary",
         use_container_width=True
