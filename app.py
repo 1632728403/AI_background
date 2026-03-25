@@ -4,58 +4,85 @@ from PIL import Image, ImageEnhance
 import onnxruntime as ort
 import streamlit as st
 from io import BytesIO
+import requests
 
 # 云端环境兼容配置
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
-# ==================== 【新增：浏览量 + 点赞功能 核心代码】 ====================
-# 初始化会话状态，防止重复计数
+# ==================== 【永久存储：浏览量 + 点赞功能 核心代码】 ====================
+# 读取GitHub Gist配置（适配你的点赞文件名：like）
+try:
+    GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
+    VISIT_GIST_ID = st.secrets["VISIT_GIST_ID"]
+    LIKE_GIST_ID = st.secrets["LIKE_GIST_ID"]
+except:
+    GITHUB_TOKEN = ""
+    VISIT_GIST_ID = ""
+    LIKE_GIST_ID = ""
+
+# 初始化会话状态，防止重复计数/点赞
 def init_session():
     if "visited" not in st.session_state:
         st.session_state.visited = False
     if "liked" not in st.session_state:
         st.session_state.liked = False
 
-# 浏览量统计（文件持久化）
+# Gist获取访问量（永久存储）
 def get_visit_count():
-    count_file = "visit_count.txt"
-    if not os.path.exists(count_file):
-        with open(count_file, "w") as f:
-            f.write("0")
-    with open(count_file, "r") as f:
-        count = int(f.read().strip())
-    # 仅首次加载计数
-    if not st.session_state.visited:
-        count += 1
-        with open(count_file, "w") as f:
-            f.write(str(count))
-        st.session_state.visited = True
-    return count
+    try:
+        url = f"https://api.github.com/gists/{VISIT_GIST_ID}"
+        headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+        res = requests.get(url, headers=headers)
+        count = int(res.json()["files"]["visit_count.txt"]["content"])
+        # 仅首次加载计数
+        if not st.session_state.visited:
+            count += 1
+            save_visit_count(count)
+            st.session_state.visited = True
+        return count
+    except:
+        return 0
 
-# 点赞功能（文件持久化 + 防重复点赞）
+# Gist保存访问量
+def save_visit_count(count):
+    try:
+        url = f"https://api.github.com/gists/{VISIT_GIST_ID}"
+        headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+        data = {"files": {"visit_count.txt": {"content": str(count)}}}
+        requests.patch(url, headers=headers, json=data)
+    except:
+        pass
+
+# Gist获取点赞数（适配文件名：like）
 def get_like_count():
-    like_file = "like_count.txt"
-    if not os.path.exists(like_file):
-        with open(like_file, "w") as f:
-            f.write("0")
-    with open(like_file, "r") as f:
-        return int(f.read().strip())
+    try:
+        url = f"https://api.github.com/gists/{LIKE_GIST_ID}"
+        headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+        res = requests.get(url, headers=headers)
+        return int(res.json()["files"]["like"]["content"])
+    except:
+        return 0
 
+# Gist增加点赞（防重复 + 适配文件名：like）
 def add_like():
     if not st.session_state.liked:
-        like_file = "like_count.txt"
-        current = get_like_count() + 1
-        with open(like_file, "w") as f:
-            f.write(str(current))
-        st.session_state.liked = True
+        try:
+            current = get_like_count() + 1
+            url = f"https://api.github.com/gists/{LIKE_GIST_ID}"
+            headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+            data = {"files": {"like": {"content": str(current)}}}
+            requests.patch(url, headers=headers, json=data)
+            st.session_state.liked = True
+        except:
+            pass
 
-# 初始化
+# 初始化会话
 init_session()
 visit_num = get_visit_count()
 like_num = get_like_count()
 # ==========================================================================
 
-# -------------------------- 核心函数保持不变 --------------------------
+# -------------------------- 核心证件照处理函数（完全不变） --------------------------
 @st.cache_resource
 def load_model():
     session = ort.InferenceSession("u2netp.onnx")
@@ -96,8 +123,7 @@ def generate_result(image, mask_pil, bg_color):
     
     return Image.fromarray(result.astype(np.uint8))
 
-# -------------------------- 界面代码 (含格式选择) --------------------------
-
+# -------------------------- 界面代码（完全保留原有样式） --------------------------
 # 1. 页面配置
 st.set_page_config(
     page_title="西电AI证件照", 
@@ -116,7 +142,7 @@ with st.container():
     with col2:
         st.markdown("<h1 style='text-align: center; font-size: 1.5em;'>西电专属 AI 证件照</h1>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; color: grey; font-size: 0.9em;'>人像分割 & 背景替换</p>", unsafe_allow_html=True)
-        # 【显示浏览量+点赞数】
+        # 显示永久存储的访问量+点赞数
         st.markdown(f"<p style='text-align: center; color: #666; font-size: 0.8em;'>👀 总访问量：{visit_num}  |  👍 点赞数：{like_num}</p>", unsafe_allow_html=True)
     with col3:
         st.empty()
@@ -128,7 +154,6 @@ st.markdown("### 📸 第一步：上传照片")
 uploaded_file = st.file_uploader("支持 JPG / PNG 格式", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
 
 if uploaded_file is not None:
-    
     # 【第二步：背景颜色】
     st.markdown("### 🎨 第二步：选择背景颜色")
     bg_color = st.radio(
@@ -148,7 +173,7 @@ if uploaded_file is not None:
         step=0.05
     )
     
-    # 【第四步：导出格式选择】(新增)
+    # 【第四步：导出格式选择】
     st.markdown("### 📄 第四步：选择导出格式")
     export_format = st.radio(
         label="推荐使用 PNG 以获得最佳画质",
@@ -175,11 +200,9 @@ if uploaded_file is not None:
     
     # 响应式图片展示
     c1, c2 = st.columns(2)
-    
     with c1:
         st.caption("原始图片")
         st.image(img, use_container_width=True)
-    
     with c2:
         st.caption(f"处理结果 ({bg_color})")
         st.image(result_img, use_container_width=True)
@@ -187,21 +210,17 @@ if uploaded_file is not None:
     # 下载区域 (根据格式动态调整)
     st.divider()
     buf = BytesIO()
-    
     # 解析用户选择
     if "JPG" in export_format:
-        # 保存为 JPG
-        result_img.save(buf, format="JPEG", quality=95) # quality=95 兼顾体积和画质
+        result_img.save(buf, format="JPEG", quality=95)
         ext = "jpg"
         mime_type = "image/jpeg"
     else:
-        # 保存为 PNG
         result_img.save(buf, format="PNG")
         ext = "png"
         mime_type = "image/png"
         
     byte_data = buf.getvalue()
-    
     st.download_button(
         label=f"📥 下载 {bg_color} 背景证件照 (.{ext})",
         data=byte_data,
@@ -220,7 +239,7 @@ else:
     </div>
     """, unsafe_allow_html=True)
 
-# ==================== 【新增：点赞按钮】 ====================
+# ==================== 点赞按钮（功能不变，永久计数） ====================
 st.divider()
 col_like, _ = st.columns([1, 3])
 with col_like:
@@ -229,17 +248,34 @@ with col_like:
     else:
         if st.button("👍 觉得好用点个赞喵", on_click=add_like, use_container_width=True):
             st.rerun()
-# ====================== 评论区传送门（独立跳转，不影响主功能） ======================
-# 跳转按钮 - 点击直接打开你的独立评论区网站
+
+# ====================== 评论区传送门（智能微信提示，仅微信显示） ======================
 st.link_button(
     label="💬 前往评论区 | 发布留言、点赞、互动",
     url="https://aibackground-comments.streamlit.app/",
     type="secondary",
     use_container_width=True
 )
-st.markdown("<p style='text-align:center; color:#888; font-size:15px;'>若打不开请移步浏览器</p>", unsafe_allow_html=True)
+
+# 仅微信内置浏览器显示打开提示
+from streamlit import runtime
+ctx = runtime.get_instance()
+user_agent = ""
+if ctx and hasattr(ctx, "_session_manager") and ctx._session_manager:
+    sess = next(iter(ctx._session_manager._sessions.values()), None)
+    if sess:
+        user_agent = sess.client.request.headers.get("User-Agent", "")
+is_wechat = "MicroMessenger" in user_agent
+if is_wechat:
+    st.markdown("""
+    <div style='text-align:center; color:#ffcc00; font-size:13px; margin-top:5px;'>
+    ⚠️ 微信内无法直接打开，请复制链接到浏览器访问
+    </div>
+    """, unsafe_allow_html=True)
+
 st.markdown("---")
-# 5. 底部信息
+
+# 5. 底部信息（完全保留）
 with st.expander("关于本工具"):
     st.markdown("**技术栈**: U2NetP + ONNX + Streamlit")
     st.markdown("**反馈邮箱**: 1632728403@qq.com")
