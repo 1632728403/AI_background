@@ -8,7 +8,7 @@ from io import BytesIO
 # 云端环境兼容配置
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
-# ==================== 【新增：浏览量 + 点赞功能 核心代码】 ====================
+# ==================== 【原版：浏览量+点赞（强制初始保底）】 ====================
 # 初始化会话状态，防止重复计数
 def init_session():
     if "visited" not in st.session_state:
@@ -16,15 +16,21 @@ def init_session():
     if "liked" not in st.session_state:
         st.session_state.liked = False
 
-# 浏览量统计（文件持久化）
+# 浏览量统计（强制初始500，永不低于500）
 def get_visit_count():
     count_file = "visit_count.txt"
+    INIT_VISIT = 500
     if not os.path.exists(count_file):
         with open(count_file, "w") as f:
-            f.write("0")
+            f.write(str(INIT_VISIT))
     with open(count_file, "r") as f:
         count = int(f.read().strip())
-    # 仅首次加载计数
+    
+    # 保底：永远不小于500
+    if count < INIT_VISIT:
+        count = INIT_VISIT
+
+    # 仅首次加载计数+1
     if not st.session_state.visited:
         count += 1
         with open(count_file, "w") as f:
@@ -32,19 +38,25 @@ def get_visit_count():
         st.session_state.visited = True
     return count
 
-# 点赞功能（文件持久化 + 防重复点赞）
+# 点赞功能（强制初始50，永不低于50）
 def get_like_count():
     like_file = "like_count.txt"
+    INIT_LIKE = 50
     if not os.path.exists(like_file):
         with open(like_file, "w") as f:
-            f.write("0")
+            f.write(str(INIT_LIKE))
     with open(like_file, "r") as f:
-        return int(f.read().strip())
+        count = int(f.read().strip())
+    
+    # 保底：永远不小于50
+    if count < INIT_LIKE:
+        count = INIT_LIKE
+    return count
 
 def add_like():
     if not st.session_state.liked:
-        like_file = "like_count.txt"
         current = get_like_count() + 1
+        like_file = "like_count.txt"
         with open(like_file, "w") as f:
             f.write(str(current))
         st.session_state.liked = True
@@ -78,17 +90,16 @@ def infer_mask(image, session):
     mask_pil = Image.fromarray(mask).resize(image.size, Image.NEAREST)
     return mask_pil
 
-# 颜色转换工具：十六进制转RGB
-def hex2rgb(hex_color):
-    hex_color = hex_color.lstrip('#')
-    return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
-
-# 生成结果（支持标准色+自定义色）
-def generate_result(image, mask_pil, bg_hex):
+def generate_result(image, mask_pil, bg_color):
     mask_np = np.array(mask_pil)
     img_np = np.array(image)
-    # 转换为RGB
-    bg_r, bg_g, bg_b = hex2rgb(bg_hex)
+    
+    color_map = {
+        "白色": (255, 255, 255),
+        "红色": (255, 0, 0),
+        "蓝色": (0, 0, 255)
+    }
+    bg_r, bg_g, bg_b = color_map[bg_color]
     
     result = np.zeros_like(img_np)
     result[:, :, 0] = np.where(mask_np > 127, img_np[:, :, 0], bg_r)
@@ -130,30 +141,14 @@ uploaded_file = st.file_uploader("支持 JPG / PNG 格式", type=["jpg", "jpeg",
 
 if uploaded_file is not None:
     
-    # 【第二步：背景颜色 - 升级：标准证件照色 + 自定义调色盘】
+    # 【第二步：背景颜色】
     st.markdown("### 🎨 第二步：选择背景颜色")
-    # 🔥 证件照国标标准色号（核心）
-    color_options = {
-        "🪪 标准白色 #FFFFFF": "#FFFFFF",
-        "🪪 标准红色 #E63946": "#E63946",
-        "🪪 标准蓝色 #1E88E5": "#1E88E5",
-        "🪪 浅蓝背景 #87CEEB": "#87CEEB",
-        "🪪 深灰背景 #CCCCCC": "#CCCCCC",
-        "🎨 自定义颜色": "custom"
-    }
-    selected_color = st.radio(
-        "选择证件照背景色",
-        list(color_options.keys()),
+    bg_color = st.radio(
+        label="",
+        options=["白色", "红色", "蓝色"],
         horizontal=True,
-        index=0,
-        label_visibility="collapsed"
+        index=0
     )
-
-    # 自定义颜色选择器
-    if color_options[selected_color] == "custom":
-        bg_hex = st.color_picker("挑选自定义背景色", "#FFFFFF")
-    else:
-        bg_hex = color_options[selected_color]
 
     # 【第三步：亮度调节】
     st.markdown("### 💡 第三步：调节照片亮度")
@@ -180,7 +175,7 @@ if uploaded_file is not None:
     
     with st.spinner("🔍 AI 正在处理中，请稍候..."):
         mask = infer_mask(img, session)
-        result_img = generate_result(img, mask, bg_hex)
+        result_img = generate_result(img, mask, bg_color)
         
         # 应用亮度调节
         if brightness_factor != 1.0:
@@ -198,7 +193,7 @@ if uploaded_file is not None:
         st.image(img, use_container_width=True)
     
     with c2:
-        st.caption(f"处理结果")
+        st.caption(f"处理结果 ({bg_color})")
         st.image(result_img, use_container_width=True)
 
     # 下载区域 (根据格式动态调整)
@@ -220,9 +215,9 @@ if uploaded_file is not None:
     byte_data = buf.getvalue()
     
     st.download_button(
-        label=f"📥 下载证件照 (.{ext})",
+        label=f"📥 下载 {bg_color} 背景证件照 (.{ext})",
         data=byte_data,
-        file_name=f"XDU证件照.{ext}",
+        file_name=f"XDU证件照_{bg_color}.{ext}",
         mime=mime_type,
         type="primary",
         use_container_width=True
@@ -237,7 +232,7 @@ else:
     </div>
     """, unsafe_allow_html=True)
 
-# ==================== 【新增：点赞按钮】 ====================
+# ==================== 【点赞按钮】 ====================
 st.divider()
 col_like, _ = st.columns([1, 3])
 with col_like:
@@ -246,8 +241,8 @@ with col_like:
     else:
         if st.button("👍 觉得好用点个赞喵", on_click=add_like, use_container_width=True):
             st.rerun()
-# ====================== 评论区传送门（独立跳转，不影响主功能） ======================
-# 跳转按钮 - 点击直接打开你的独立评论区网站
+
+# ====================== 评论区传送门 ======================
 st.link_button(
     label="💬 前往评论区 | 发布留言、点赞、互动",
     url="https://aibackground-comments.streamlit.app/",
@@ -256,7 +251,8 @@ st.link_button(
 )
 st.markdown("<p style='text-align:center; color:#888; font-size:15px;'>若打不开请移步浏览器</p>", unsafe_allow_html=True)
 st.markdown("---")
-# 5. 底部信息
+
+# 底部信息
 with st.expander("关于本工具"):
     st.markdown("**技术栈**: U2NetP + ONNX + Streamlit")
     st.markdown("**反馈邮箱**: 1632728403@qq.com")
