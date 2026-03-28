@@ -19,7 +19,7 @@ def init_session():
 # 浏览量统计（强制初始500，永不低于500）
 def get_visit_count():
     count_file = "visit_count.txt"
-    INIT_VISIT = 500
+    INIT_VISIT = 506
     if not os.path.exists(count_file):
         with open(count_file, "w") as f:
             f.write(str(INIT_VISIT))
