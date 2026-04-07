@@ -113,6 +113,14 @@ with st.sidebar:
         crop_bottom = st.slider("下边缘裁切 %", 0, 40, 0, 1)
         crop_left = st.slider("左边缘裁切 %", 0, 40, 0, 1)
         crop_right = st.slider("右边缘裁切 %", 0, 40, 0, 1)
+        
+    # --- 新增去水印模块 ---
+    with st.expander("🧽 简易去原图水印 (右下角)", expanded=False):
+        st.caption("💡 提示：如果水印在原图背景上，AI会自动抠除，无需开启此项！仅适用于水印挡在人身上的情况。")
+        remove_wm = st.checkbox("开启局部涂抹")
+        wm_w_percent = st.slider("检测区域宽度 %", 10, 50, 25)
+        wm_h_percent = st.slider("检测区域高度 %", 5, 30, 10)
+        wm_blur = st.slider("涂抹抹平强度", 2, 25, 8)
 
     with st.expander("🪄 画质与光线优化", expanded=True):
         brightness_factor = st.slider("💡 亮度", 0.5, 1.8, 1.0, 0.05)
@@ -124,7 +132,6 @@ with st.sidebar:
         feather_radius = st.slider("🌫️ 边缘柔化 (防锯齿)", 0, 5, 1, 1)
         smooth_skin = st.checkbox("✨ 开启轻度磨皮 (柔焦)")
         
-    # --- 新版水印控制区 ---
     with st.expander("🪪 添加专属水印 (防盗版)", expanded=False):
         watermark_text = st.text_input("水印内容", placeholder="例如：仅供西电选课使用")
         watermark_style = st.selectbox("排版方式", ["斜向平铺 (防盗推荐)", "横向平铺", "底部居中"])
@@ -174,8 +181,8 @@ if uploaded_file is not None:
     else:
         color_map = {
             "白色": (255, 255, 255),
-            "红色": (255, 0, 51),     # 标准证件红
-            "蓝色": (67, 142, 219),   # 标准证件蓝
+            "红色": (255, 0, 51),     
+            "蓝色": (67, 142, 219),   
             "西电蓝": (0, 65, 130)
         }
         bg_rgb = color_map[bg_option]
@@ -190,8 +197,23 @@ if uploaded_file is not None:
     )
 
     img = Image.open(uploaded_file).convert("RGB")
-    
     w, h = img.size
+    
+    # ================== 新增：去除右下角水印逻辑 ==================
+    if remove_wm:
+        # 计算需要处理的右下角坐标
+        wm_left = int(w * (1 - wm_w_percent / 100))
+        wm_top = int(h * (1 - wm_h_percent / 100))
+        
+        # 截取该区域
+        watermark_region = img.crop((wm_left, wm_top, w, h))
+        # 应用强力模糊抹平文字像素
+        watermark_region = watermark_region.filter(ImageFilter.GaussianBlur(wm_blur))
+        # 将处理后的无字色块贴回原图
+        img.paste(watermark_region, (wm_left, wm_top, w, h))
+    # ==============================================================
+
+    # 裁剪逻辑
     left = int(w * crop_left / 100)
     right = int(w * (100 - crop_right) / 100)
     top = int(h * crop_top / 100)
@@ -216,18 +238,14 @@ if uploaded_file is not None:
         if sharpness_factor != 1.0:
             result_img = ImageEnhance.Sharpness(result_img).enhance(sharpness_factor)
             
-        # ================== 全新水印渲染引擎 ==================
         if watermark_text:
-            # 创建与原图等大的透明图层
             result_img = result_img.convert("RGBA")
             watermark_layer = Image.new("RGBA", result_img.size, (255, 255, 255, 0))
             
-            # 解析颜色和透明度
             h_color = watermark_color.lstrip('#')
             rgb_color = tuple(int(h_color[i:i+2], 16) for i in (0, 2, 4))
             rgba_color = rgb_color + (watermark_opacity,)
             
-            # 智能加载字体 (优先加载常见中文字体，失败则使用默认)
             font = None
             font_candidates = ["simhei.ttf", "msyh.ttf", "simsun.ttc", "Arial.ttf"]
             for font_path in font_candidates:
@@ -239,7 +257,6 @@ if uploaded_file is not None:
             if font is None:
                 font = ImageFont.load_default()
 
-            # 获取文字的宽高 (兼容不同PIL版本)
             try:
                 if hasattr(font, 'getbbox'):
                     bbox = font.getbbox(watermark_text)
@@ -259,32 +276,26 @@ if uploaded_file is not None:
                 draw.text((x, y), watermark_text, fill=rgba_color, font=font)
             
             else:
-                # 平铺模式 (横向 或 斜向)
-                tile_size = max(tw, th) * 2 # 留足旋转空间
+                tile_size = max(tw, th) * 2 
                 tile = Image.new("RGBA", (tile_size, tile_size), (255, 255, 255, 0))
                 tile_draw = ImageDraw.Draw(tile)
                 
-                # 将文字画在模块中心
                 tile_draw.text(((tile_size - tw) // 2, (tile_size - th) // 2), watermark_text, fill=rgba_color, font=font)
                 
                 if watermark_style == "斜向平铺 (防盗推荐)":
                     tile = tile.rotate(30, expand=False, resample=Image.BICUBIC)
                 
-                # 裁剪多余空白以优化排布
                 step_x = tw + watermark_spacing
                 step_y = th + watermark_spacing
                 if watermark_style == "斜向平铺 (防盗推荐)":
                     step_x = int(tile_size * 0.6) + watermark_spacing
                     step_y = int(tile_size * 0.6) + watermark_spacing
 
-                # 铺满整个画面 (稍微从负坐标开始，防止边缘漏空)
                 for x in range(-step_x, img_w, step_x):
                     for y in range(-step_y, img_h, step_y):
                         watermark_layer.paste(tile, (x, y), tile)
 
-            # 合成水印并转回 RGB
             result_img = Image.alpha_composite(result_img, watermark_layer).convert("RGB")
-        # ====================================================
 
     st.divider()
     st.markdown("### ✨ 效果预览 & 下载")
@@ -292,7 +303,7 @@ if uploaded_file is not None:
     
     c1, c2 = st.columns(2)
     with c1:
-        st.caption("原始图片 (应用裁剪后)")
+        st.caption("原始图片 (应用裁剪/去水印后)")
         st.image(img, use_container_width=True)
     with c2:
         st.caption(f"处理结果 ({bg_name})")
