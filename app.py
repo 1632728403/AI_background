@@ -80,7 +80,7 @@ def infer_mask(image, session, feather_radius=0):
     
     if feather_radius > 0:
         mask_pil = mask_pil.filter(ImageFilter.GaussianBlur(feather_radius))
-        
+        return mask_pil
     return mask_pil
 
 def generate_result(image, mask_pil, bg_rgb):
@@ -124,10 +124,20 @@ with st.sidebar:
         feather_radius = st.slider("🌫️ 边缘柔化 (防锯齿)", 0, 5, 1, 1)
         smooth_skin = st.checkbox("✨ 开启轻度磨皮 (柔焦)")
         
-    with st.expander("🪪 添加专属水印", expanded=False):
+    # --- 新版水印控制区 ---
+    with st.expander("🪪 添加专属水印 (防盗版)", expanded=False):
         watermark_text = st.text_input("水印内容", placeholder="例如：仅供西电选课使用")
-        watermark_color = st.color_picker("水印颜色", "#FFFFFF")
-        watermark_opacity = st.slider("水印透明度", 0, 255, 128)
+        watermark_style = st.selectbox("排版方式", ["斜向平铺 (防盗推荐)", "横向平铺", "底部居中"])
+        
+        c_w1, c_w2 = st.columns(2)
+        with c_w1:
+            watermark_color = st.color_picker("颜色", "#FFFFFF")
+        with c_w2:
+            watermark_opacity = st.slider("透明度", 0, 255, 120)
+            
+        watermark_size = st.slider("字体大小", 10, 100, 30)
+        watermark_spacing = st.slider("平铺间距 (防盗模式可用)", 10, 300, 80)
+        st.caption("💡 提示：若云端部署时出现中文乱码，请在代码目录放置 simhei.ttf 文件")
 
 # ==================== 【主界面区】 ====================
 with st.container():
@@ -149,7 +159,6 @@ st.markdown("### 📸 第一步：上传照片")
 uploaded_file = st.file_uploader("支持 JPG / PNG 格式", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
 
 if uploaded_file is not None:
-    # 【第二步：背景颜色】
     st.markdown("### 🎨 第二步：选择背景颜色")
     bg_option = st.radio(
         label="",
@@ -158,7 +167,6 @@ if uploaded_file is not None:
         index=0
     )
     
-    # 根据选项解析颜色 (使用标准证件照颜色)
     if bg_option == "🎨 任意选色 (调色盘)":
         custom_hex = st.color_picker("👉 请在调色盘中自由选择您的专属背景色", "#87CEEB")
         bg_rgb = tuple(int(custom_hex.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
@@ -166,14 +174,13 @@ if uploaded_file is not None:
     else:
         color_map = {
             "白色": (255, 255, 255),
-            "红色": (255, 0, 51),     # 修改为标准证件红
-            "蓝色": (67, 142, 219),   # 修改为标准证件蓝
+            "红色": (255, 0, 51),     # 标准证件红
+            "蓝色": (67, 142, 219),   # 标准证件蓝
             "西电蓝": (0, 65, 130)
         }
         bg_rgb = color_map[bg_option]
         bg_name = bg_option
 
-    # 【第三步：导出格式选择】
     st.markdown("### 📄 第三步：选择导出格式")
     export_format = st.radio(
         label="推荐使用 PNG 以获得最佳画质",
@@ -209,21 +216,79 @@ if uploaded_file is not None:
         if sharpness_factor != 1.0:
             result_img = ImageEnhance.Sharpness(result_img).enhance(sharpness_factor)
             
+        # ================== 全新水印渲染引擎 ==================
         if watermark_text:
-            draw = ImageDraw.Draw(result_img)
-            try:
-                font = ImageFont.load_default() 
-            except:
-                font = None
+            # 创建与原图等大的透明图层
+            result_img = result_img.convert("RGBA")
+            watermark_layer = Image.new("RGBA", result_img.size, (255, 255, 255, 0))
+            
+            # 解析颜色和透明度
             h_color = watermark_color.lstrip('#')
             rgb_color = tuple(int(h_color[i:i+2], 16) for i in (0, 2, 4))
             rgba_color = rgb_color + (watermark_opacity,)
+            
+            # 智能加载字体 (优先加载常见中文字体，失败则使用默认)
+            font = None
+            font_candidates = ["simhei.ttf", "msyh.ttf", "simsun.ttc", "Arial.ttf"]
+            for font_path in font_candidates:
+                try:
+                    font = ImageFont.truetype(font_path, watermark_size)
+                    break
+                except IOError:
+                    continue
+            if font is None:
+                font = ImageFont.load_default()
+
+            # 获取文字的宽高 (兼容不同PIL版本)
+            try:
+                if hasattr(font, 'getbbox'):
+                    bbox = font.getbbox(watermark_text)
+                    tw = bbox[2] - bbox[0]
+                    th = bbox[3] - bbox[1]
+                else:
+                    tw, th = font.getsize(watermark_text)
+            except:
+                tw, th = len(watermark_text) * (watermark_size // 2), watermark_size
+
             img_w, img_h = result_img.size
-            draw.text((img_w*0.05, img_h*0.9), watermark_text, fill=rgba_color, font=font)
+
+            if watermark_style == "底部居中":
+                draw = ImageDraw.Draw(watermark_layer)
+                x = (img_w - tw) // 2
+                y = img_h - th - max(20, int(img_h * 0.05))
+                draw.text((x, y), watermark_text, fill=rgba_color, font=font)
+            
+            else:
+                # 平铺模式 (横向 或 斜向)
+                tile_size = max(tw, th) * 2 # 留足旋转空间
+                tile = Image.new("RGBA", (tile_size, tile_size), (255, 255, 255, 0))
+                tile_draw = ImageDraw.Draw(tile)
+                
+                # 将文字画在模块中心
+                tile_draw.text(((tile_size - tw) // 2, (tile_size - th) // 2), watermark_text, fill=rgba_color, font=font)
+                
+                if watermark_style == "斜向平铺 (防盗推荐)":
+                    tile = tile.rotate(30, expand=False, resample=Image.BICUBIC)
+                
+                # 裁剪多余空白以优化排布
+                step_x = tw + watermark_spacing
+                step_y = th + watermark_spacing
+                if watermark_style == "斜向平铺 (防盗推荐)":
+                    step_x = int(tile_size * 0.6) + watermark_spacing
+                    step_y = int(tile_size * 0.6) + watermark_spacing
+
+                # 铺满整个画面 (稍微从负坐标开始，防止边缘漏空)
+                for x in range(-step_x, img_w, step_x):
+                    for y in range(-step_y, img_h, step_y):
+                        watermark_layer.paste(tile, (x, y), tile)
+
+            # 合成水印并转回 RGB
+            result_img = Image.alpha_composite(result_img, watermark_layer).convert("RGB")
+        # ====================================================
 
     st.divider()
     st.markdown("### ✨ 效果预览 & 下载")
-    st.info("💡 提示：可以在左侧边栏调整对比度、饱和度和裁剪画面哦！")
+    st.info("💡 提示：可以在左侧边栏调整对比度、饱和度或添加防盗水印！")
     
     c1, c2 = st.columns(2)
     with c1:
