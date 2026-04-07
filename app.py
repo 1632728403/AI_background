@@ -83,7 +83,6 @@ def infer_mask(image, session, feather_radius=0):
         
     return mask_pil
 
-# 修改点：直接接收 rgb 颜色元组，支持任意颜色
 def generate_result(image, mask_pil, bg_rgb):
     mask_np = np.array(mask_pil)
     img_np = np.array(image)
@@ -150,7 +149,7 @@ st.markdown("### 📸 第一步：上传照片")
 uploaded_file = st.file_uploader("支持 JPG / PNG 格式", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
 
 if uploaded_file is not None:
-    # 【第二步：背景颜色 (恢复调色盘任意选色)】
+    # 【第二步：背景颜色】
     st.markdown("### 🎨 第二步：选择背景颜色")
     bg_option = st.radio(
         label="",
@@ -159,17 +158,16 @@ if uploaded_file is not None:
         index=0
     )
     
-    # 根据选项解析颜色
+    # 根据选项解析颜色 (使用标准证件照颜色)
     if bg_option == "🎨 任意选色 (调色盘)":
         custom_hex = st.color_picker("👉 请在调色盘中自由选择您的专属背景色", "#87CEEB")
-        # 将 HEX 转换为 RGB 元组
         bg_rgb = tuple(int(custom_hex.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
         bg_name = "自定义配色"
     else:
         color_map = {
             "白色": (255, 255, 255),
-            "红色": (255, 0, 0),
-            "蓝色": (0, 0, 255),
+            "红色": (255, 0, 51),     # 修改为标准证件红
+            "蓝色": (67, 142, 219),   # 修改为标准证件蓝
             "西电蓝": (0, 65, 130)
         }
         bg_rgb = color_map[bg_option]
@@ -200,7 +198,6 @@ if uploaded_file is not None:
             img = img.filter(ImageFilter.SMOOTH_MORE)
             
         mask = infer_mask(img, session, feather_radius)
-        # 传入解析后的 RGB 颜色
         result_img = generate_result(img, mask, bg_rgb)
         
         if brightness_factor != 1.0:
